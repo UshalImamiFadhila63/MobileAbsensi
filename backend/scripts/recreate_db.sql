@@ -1,0 +1,83 @@
+-- WARNING: This script DROPS the database `db_absensi`. Data will be lost.
+-- Run as MySQL root: mysql -u root -p < recreate_db.sql
+
+DROP DATABASE IF EXISTS `db_absensi`;
+CREATE DATABASE `db_absensi` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- create user and grant privileges
+CREATE USER IF NOT EXISTS 'absensi_user'@'localhost' IDENTIFIED BY 'change_me';
+GRANT ALL PRIVILEGES ON `db_absensi`.* TO 'absensi_user'@'localhost';
+FLUSH PRIVILEGES;
+
+-- Create schema tables
+USE `db_absensi`;
+
+CREATE TABLE `users` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `nama` VARCHAR(255) NOT NULL,
+  `email` VARCHAR(255) NOT NULL,
+  `password` VARCHAR(255) NOT NULL,
+  `role` ENUM('karyawan','admin') NOT NULL DEFAULT 'karyawan',
+  `jabatan` VARCHAR(255) DEFAULT NULL,
+  `no_hp` VARCHAR(50) DEFAULT NULL,
+  `foto_profil` VARCHAR(255) DEFAULT NULL,
+  `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+  `createdAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `users_email_unique` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `absensi` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `user_id` INT NOT NULL,
+  `tanggal` DATE NOT NULL,
+  `jam_masuk` TIME DEFAULT NULL,
+  `jam_pulang` TIME DEFAULT NULL,
+  `foto_masuk` VARCHAR(255) DEFAULT NULL,
+  `foto_pulang` VARCHAR(255) DEFAULT NULL,
+  `lat_masuk` DECIMAL(10,7) DEFAULT NULL,
+  `lng_masuk` DECIMAL(10,7) DEFAULT NULL,
+  `lat_pulang` DECIMAL(10,7) DEFAULT NULL,
+  `lng_pulang` DECIMAL(10,7) DEFAULT NULL,
+  `status` ENUM('hadir','telat','alpha') NOT NULL DEFAULT 'hadir',
+  `createdAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `absensi_user_id_idx` (`user_id`),
+  CONSTRAINT `absensi_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `cuti` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `user_id` INT NOT NULL,
+  `jenis_cuti` VARCHAR(255) NOT NULL,
+  `tanggal_mulai` DATE NOT NULL,
+  `tanggal_selesai` DATE NOT NULL,
+  `alasan` TEXT NOT NULL,
+  `lampiran` VARCHAR(255) DEFAULT NULL,
+  `status` ENUM('menunggu','diterima','ditolak') NOT NULL DEFAULT 'menunggu',
+  `catatan_admin` TEXT DEFAULT NULL,
+  `diproses_oleh` INT DEFAULT NULL,
+  `createdAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `cuti_user_id_idx` (`user_id`),
+  KEY `cuti_diproses_oleh_idx` (`diproses_oleh`),
+  CONSTRAINT `cuti_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `cuti_diproses_by_fk` FOREIGN KEY (`diproses_oleh`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `laporan` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `user_id` INT NOT NULL,
+  `tanggal` DATE NOT NULL,
+  `judul` VARCHAR(255) NOT NULL,
+  `isi_laporan` TEXT NOT NULL,
+  `lampiran` VARCHAR(255) DEFAULT NULL,
+  `createdAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `laporan_user_id_idx` (`user_id`),
+  CONSTRAINT `laporan_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
