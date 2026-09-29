@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../../core/api_service.dart';
 import '../../core/constants.dart';
 import '../../core/session.dart';
-import 'absen_screen.dart';
+import 'absensi_screen.dart';
+import 'riwayat_absen_screen.dart';
+import 'laporan_screen.dart';
 import 'pengajuan_cuti_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -14,9 +16,14 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
-  bool _sudahMasuk = false;
-  bool _sudahPulang = false;
-  String _nama = '';
+  String _nama = 'Ahmad Fauzi';
+  String? _jamMasuk;
+  String? _jamPulang;
+
+  int _countHadir = 14;
+  int _countTerlambat = 2;
+  int _countLaporan = 13;
+  int _countCuti = 1;
 
   @override
   void initState() {
@@ -29,131 +36,645 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final status = await ApiService.statusHariIni();
       final nama = await Session.getNama();
-      setState(() {
-        _sudahMasuk = status['sudah_absen_masuk'] ?? false;
-        _sudahPulang = status['sudah_absen_pulang'] ?? false;
-        _nama = nama ?? '';
-      });
+      if (mounted && nama != null && nama.isNotEmpty) {
+        _nama = nama;
+      }
+
+      if (status['data'] != null) {
+        final data = status['data'];
+        String? msk = data['jam_masuk'];
+        String? plg = data['jam_pulang'];
+        if (msk != null && msk.length >= 5) msk = msk.substring(0, 5);
+        if (plg != null && plg.length >= 5) plg = plg.substring(0, 5);
+        _jamMasuk = msk;
+        _jamPulang = plg;
+      }
+
+      // Ambil ringkasan riwayat jika tersedia
+      try {
+        final riwayat = await ApiService.riwayatAbsen();
+        if (riwayat.isNotEmpty) {
+          int hadir = 0;
+          int terlambat = 0;
+          for (final r in riwayat) {
+            final st = (r['status'] ?? '').toString().toLowerCase();
+            if (st.contains('terlambat')) {
+              terlambat++;
+            } else if (r['jam_masuk'] != null) {
+              hadir++;
+            }
+          }
+          if (mounted && hadir > 0) {
+            _countHadir = hadir;
+            _countTerlambat = terlambat;
+          }
+        }
+      } catch (_) {}
+
+      try {
+        final lap = await ApiService.laporanSaya();
+        if (mounted && lap.isNotEmpty) {
+          _countLaporan = lap.length;
+        }
+      } catch (_) {}
+
+      try {
+        final cutiList = await ApiService.informasiCutiSaya();
+        if (mounted && cutiList.isNotEmpty) {
+          _countCuti = cutiList.length;
+        }
+      } catch (_) {}
     } catch (_) {
-      // biarkan tampil default kalau gagal ambil status
+      // biarkan default fallback mockup jika offline
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _bukaAbsen(bool masuk) async {
-    final berhasil = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => AbsenScreen(masuk: masuk)),
-    );
-    if (berhasil == true) _muat();
+  String _salamWaktu() {
+    final jam = DateTime.now().hour;
+    if (jam >= 4 && jam < 11) return 'Selamat Pagi,';
+    if (jam >= 11 && jam < 15) return 'Selamat Siang,';
+    if (jam >= 15 && jam < 18) return 'Selamat Sore,';
+    return 'Selamat Malam,';
+  }
+
+  String _getInitials(String name) {
+    if (name.trim().isEmpty) return 'AF';
+    final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return parts[0][0].toUpperCase();
+  }
+
+  void _bukaAbsensi({bool? isMasuk}) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AbsensiScreen(
+          initialIsMasuk: isMasuk ?? true,
+          isStandalone: true,
+        ),
+      ),
+    ).then((_) => _muat());
   }
 
   @override
   Widget build(BuildContext context) {
+    const primaryColor = AppConstants.primaryColor;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Home')),
-      body: RefreshIndicator(
-        onRefresh: _muat,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  Text('Halo, $_nama 👋', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  const Text('Semoga harimu produktif!', style: TextStyle(color: Colors.black54)),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _KartuAbsen(
-                          judul: 'Absen Masuk',
-                          icon: Icons.login,
-                          sudah: _sudahMasuk,
-                          aktif: !_sudahMasuk,
-                          onTap: () => _bukaAbsen(true),
+      backgroundColor: const Color(0xFFF9FAFB),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _muat,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 1. HEADER BIRU DENGAN AVATAR & NOTIFIKASI
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          color: primaryColor,
+                          padding: const EdgeInsets.fromLTRB(20, 48, 20, 52),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  // Avatar Lingkaran Inisial
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF9AA7DD),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      _getInitials(_nama),
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _salamWaktu(),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.white.withValues(alpha: 0.88),
+                                        ),
+                                      ),
+                                      Text(
+                                        _nama,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              // Lonceng Notifikasi
+                              IconButton(
+                                icon: const Icon(Icons.notifications, color: Colors.white, size: 24),
+                                onPressed: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Tidak ada notifikasi baru saat ini.')),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _KartuAbsen(
-                          judul: 'Absen Pulang',
-                          icon: Icons.logout,
-                          sudah: _sudahPulang,
-                          aktif: _sudahMasuk && !_sudahPulang,
-                          onTap: () => _bukaAbsen(false),
+
+                        // 2. KARTU FLOATING ABSENSI (JAM MASUK, JAM PULANG, ABSENSI SEKARANG)
+                        Positioned(
+                          left: 20,
+                          right: 20,
+                          bottom: -38,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFFE5E7EB), width: 1.2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF8FAFC),
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Jam Masuk',
+                                              style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _jamMasuk ?? '—:—',
+                                              style: const TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFF111827),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF8FAFC),
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Jam Pulang',
+                                              style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _jamPulang ?? '—:—',
+                                              style: const TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFF111827),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 48,
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: primaryColor,
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    onPressed: () => _bukaAbsensi(),
+                                    icon: const Icon(Icons.camera_alt, size: 18),
+                                    label: const Text(
+                                      'Absensi Sekarang',
+                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Card(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    elevation: 0,
-                    color: const Color(0xFFF3F4F6),
-                    child: ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppConstants.primaryColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.event_note, color: AppConstants.primaryColor, size: 22),
-                      ),
-                      title: const Text('Pengajuan Cuti', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      subtitle: const Text('Ajukan permohonan izin atau cuti kerja', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                      trailing: const Icon(Icons.chevron_right, color: Colors.black45),
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const PengajuanCutiScreen()),
-                        );
-                      },
+                      ],
                     ),
-                  ),
-                ],
+
+                    const SizedBox(height: 56),
+
+                    // 3. MENU CEPAT
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(20, 8, 20, 10),
+                      child: Text(
+                        'MENU CEPAT',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF9CA3AF),
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ),
+
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildMenuCepatItem(
+                            icon: Icons.camera_alt,
+                            iconBg: const Color(0xFFEEF2FF),
+                            iconColor: const Color(0xFF3B82F6),
+                            label: 'Absen\nMasuk',
+                            onTap: () => _bukaAbsensi(isMasuk: true),
+                          ),
+                          _buildMenuCepatItem(
+                            icon: Icons.access_time_filled,
+                            iconBg: const Color(0xFFDCFCE7),
+                            iconColor: const Color(0xFF16A34A),
+                            label: 'Absen\nKeluar',
+                            onTap: () => _bukaAbsensi(isMasuk: false),
+                          ),
+                          _buildMenuCepatItem(
+                            icon: Icons.format_list_bulleted,
+                            iconBg: const Color(0xFFFFEDD5),
+                            iconColor: const Color(0xFFF97316),
+                            label: 'Riwayat\n ',
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const RiwayatAbsenScreen()),
+                              );
+                            },
+                          ),
+                          _buildMenuCepatItem(
+                            icon: Icons.assignment,
+                            iconBg: const Color(0xFFEDE9FE),
+                            iconColor: const Color(0xFF8B5CF6),
+                            label: 'Laporan\n ',
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const LaporanScreen()),
+                              );
+                            },
+                          ),
+                          _buildMenuCepatItem(
+                            icon: Icons.credit_card,
+                            iconBg: const Color(0xFFFEE2E2),
+                            iconColor: const Color(0xFFEF4444),
+                            label: 'Pengajuan\nCuti',
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const PengajuanCutiScreen()),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // 4. RINGKASAN BULAN INI (2x2 Grid)
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
+                      child: Text(
+                        'RINGKASAN BULAN INI',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF9CA3AF),
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ),
+
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildStatCard(
+                                  icon: Icons.check_circle,
+                                  iconBg: const Color(0xFFDCFCE7),
+                                  iconColor: const Color(0xFF16A34A),
+                                  title: 'Hadir',
+                                  value: '$_countHadir',
+                                  subtitle: 'dari 18 hari kerja',
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildStatCard(
+                                  icon: Icons.access_time,
+                                  iconBg: const Color(0xFFFFEDD5),
+                                  iconColor: const Color(0xFFEA580C),
+                                  title: 'Terlambat',
+                                  value: '$_countTerlambat',
+                                  subtitle: 'kali terlambat',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildStatCard(
+                                  icon: Icons.article,
+                                  iconBg: const Color(0xFFEDE9FE),
+                                  iconColor: const Color(0xFF8B5CF6),
+                                  title: 'Laporan',
+                                  value: '$_countLaporan',
+                                  subtitle: 'laporan dikirim',
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildStatCard(
+                                  icon: Icons.event_note,
+                                  iconBg: const Color(0xFFFEE2E2),
+                                  iconColor: const Color(0xFFEF4444),
+                                  title: 'Cuti',
+                                  value: '$_countCuti',
+                                  subtitle: 'hari cuti terpakai',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // 5. AKTIVITAS TERKINI (Terlihat saat scroll ke bawah)
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
+                      child: Text(
+                        'AKTIVITAS TERKINI',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF9CA3AF),
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ),
+
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE5E7EB), width: 1.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            _buildAktivitasItem(
+                              icon: Icons.check_circle,
+                              iconBg: const Color(0xFFDCFCE7),
+                              iconColor: const Color(0xFF16A34A),
+                              title: 'Absensi Masuk',
+                              subtitle: 'Kemarin, 17 Agt',
+                            ),
+                            const Divider(height: 1, indent: 60, endIndent: 16, color: Color(0xFFF3F4F6)),
+                            _buildAktivitasItem(
+                              icon: Icons.check_circle,
+                              iconBg: const Color(0xFFDCFCE7),
+                              iconColor: const Color(0xFF16A34A),
+                              title: 'Laporan Dikirim',
+                              subtitle: 'Kemarin, 17 Agt',
+                            ),
+                            const Divider(height: 1, indent: 60, endIndent: 16, color: Color(0xFFF3F4F6)),
+                            _buildAktivitasItem(
+                              icon: Icons.access_time,
+                              iconBg: const Color(0xFFFFEDD5),
+                              iconColor: const Color(0xFFEA580C),
+                              title: 'Absensi Terlambat',
+                              subtitle: '16 Agustus',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
+            ),
+    );
+  }
+
+  Widget _buildMenuCepatItem({
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: iconColor, size: 22),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1F2937),
+              height: 1.2,
+            ),
+          ),
+        ],
       ),
     );
   }
-}
 
-class _KartuAbsen extends StatelessWidget {
-  final String judul;
-  final IconData icon;
-  final bool sudah;
-  final bool aktif;
-  final VoidCallback onTap;
-
-  const _KartuAbsen({
-    required this.judul,
-    required this.icon,
-    required this.sudah,
-    required this.aktif,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      child: InkWell(
-        onTap: aktif ? onTap : null,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 12),
-          child: Column(
+  Widget _buildStatCard({
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String value,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Icon(icon, size: 36, color: sudah ? Colors.green : (aktif ? AppConstants.primaryColor : Colors.grey)),
-              const SizedBox(height: 12),
-              Text(judul, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
+              Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: iconColor, size: 16),
+              ),
+              const SizedBox(width: 8),
               Text(
-                sudah ? 'Sudah absen' : (aktif ? 'Ketuk untuk absen' : 'Belum bisa'),
-                style: TextStyle(fontSize: 12, color: sudah ? Colors.green : Colors.black45),
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6B7280),
+                ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Color(0xFF9CA3AF),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAktivitasItem({
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF111827),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: Color(0xFF6B7280),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
