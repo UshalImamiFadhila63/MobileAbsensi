@@ -3,6 +3,7 @@ import '../../core/api_service.dart';
 import '../../core/constants.dart';
 import '../../core/session.dart';
 import 'absen_screen.dart';
+import 'pengajuan_cuti_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -84,6 +85,30 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 18),
+                  Card(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                    color: const Color(0xFFF3F4F6),
+                    child: ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppConstants.primaryColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.event_note, color: AppConstants.primaryColor, size: 22),
+                      ),
+                      title: const Text('Pengajuan Cuti', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: const Text('Ajukan permohonan izin atau cuti kerja', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                      trailing: const Icon(Icons.chevron_right, color: Colors.black45),
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const PengajuanCutiScreen()),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
