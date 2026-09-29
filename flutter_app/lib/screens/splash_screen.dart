@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import '../core/session.dart';
+import '../core/constants.dart';
 import 'onboarding_screen.dart';
-import 'login_screen.dart';
-import 'karyawan/dashboard_karyawan.dart';
-import 'admin/dashboard_admin.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -19,32 +16,13 @@ class _SplashScreenState extends State<SplashScreen> {
     _cekAlur();
   }
 
-  // Mengikuti flow: START -> SPLASH -> sudah pernah lihat onboarding? -> LOGIN / ONBOARDING
+  // Buka aplikasi -> Splash (2 detik) -> Selalu otomatis muncul OnboardingScreen
   Future<void> _cekAlur() async {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
 
-    final sudahOnboarding = await Session.sudahLihatOnboarding();
-    if (!sudahOnboarding) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-      );
-      return;
-    }
-
-    final sudahLogin = await Session.sudahLogin();
-    if (!sudahLogin) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-      return;
-    }
-
-    final role = await Session.getRole();
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => role == 'admin' ? const DashboardAdmin() : const DashboardKaryawan(),
-      ),
+      MaterialPageRoute(builder: (_) => const OnboardingScreen()),
     );
   }
 
@@ -55,7 +33,7 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.fingerprint, size: 80, color: Colors.indigo),
+            Icon(Icons.fingerprint, size: 80, color: AppConstants.primaryColor),
             SizedBox(height: 16),
             Text(
               'Absensi App',
@@ -69,3 +47,4 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 }
+

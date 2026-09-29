@@ -23,9 +23,9 @@ npm run dev                # atau: npm start
 Buat database MySQL kosong dengan nama sesuai `DB_NAME` di `.env` — tabel akan
 otomatis dibuat oleh Sequelize saat server pertama kali jalan (`sequelize.sync()`).
 
-Untuk akun awal (karena belum ada endpoint register), insert manual 1 user admin
-ke tabel `users` (password di-hash pakai bcrypt), atau tambahkan sementara
-endpoint/script seed sesuai kebutuhan.
+### Akun Default Demo (Siap Pakai)
+- **Admin**: `admin@mail.com` | Password: `admin123` *(Akses ke Dashboard Admin & Manajemen Karyawan)*
+- **Karyawan**: `karyawan@mail.com` | Password: `karyawan123` *(Akses ke Absensi Masuk/Pulang, Cuti, & Laporan)*
 
 ## Menjalankan Flutter App
 
@@ -35,9 +35,14 @@ flutter pub get
 flutter run
 ```
 
-Sebelum run, sesuaikan `lib/core/constants.dart`:
-- `baseUrl` → alamat backend kamu (`10.0.2.2` untuk emulator Android yang backend-nya
-  jalan di localhost, atau IP lokal laptop kalau tes di HP fisik dalam satu jaringan wifi).
+### Koneksi Backend & Mobile (Otomatis & Fleksibel)
+Backend sudah otomatis menjalankan `adb reverse tcp:3000 tcp:3000` saat start jika ada HP Android terhubung via USB.
+
+Di layar Login Flutter, juga tersedia tombol **Pengaturan Server URL** (icon DNS di pojok kanan atas atau saat tombol tes muncul):
+- **HP Fisik via USB**: Gunakan preset `http://127.0.0.1:3000/api` (pastikan USB debugging aktif).
+- **Android Emulator**: Gunakan preset `http://10.0.2.2:3000/api` (aplikasi juga memiliki fitur auto-fallback ke URL ini jika 127.0.0.1 gagal).
+- **HP Fisik via WiFi**: Gunakan IP lokal laptop kamu (contoh `http://192.168.x.x:3000/api`).
+- Terdapat tombol **"Tes Koneksi"** di dalam dialog untuk memastikan server terhubung sebelum login.
 
 App butuh izin **Kamera** dan **Lokasi**. Tambahkan permission berikut:
 

@@ -44,4 +44,9 @@ class Session {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(AppConstants.prefKeyOnboardingSeen, true);
   }
+
+  static Future<void> resetOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(AppConstants.prefKeyOnboardingSeen);
+  }
 }
