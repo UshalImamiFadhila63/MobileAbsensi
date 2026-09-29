@@ -49,33 +49,54 @@ function tryAdbReverse(port) {
 
 async function seedDefaultUsers() {
   try {
-    const count = await User.count();
-    if (count === 0) {
-      console.log('Database baru terdeteksi. Membuat akun default...');
-      const adminPass = await bcrypt.hash('admin123', 10);
-      const karyawanPass = await bcrypt.hash('karyawan123', 10);
+    const adminPass = await bcrypt.hash('admin123', 10);
+    const karyawanPass = await bcrypt.hash('karyawan123', 10);
 
-      await User.bulkCreate([
-        {
-          nama: 'Admin',
-          email: 'admin@mail.com',
-          password: adminPass,
-          role: 'admin',
-          jabatan: 'Administrator',
-          is_active: true,
-        },
-        {
-          nama: 'Karyawan Demo',
-          email: 'karyawan@mail.com',
-          password: karyawanPass,
-          role: 'karyawan',
-          jabatan: 'Staff IT',
-          no_hp: '081234567890',
-          is_active: true,
-        },
-      ]);
-      console.log('✓ Akun default demo (admin & karyawan) berhasil dibuat otomatis.');
+    // 1. Pastikan Admin selalu ada
+    const [adminUser, adminCreated] = await User.findOrCreate({
+      where: { email: 'admin@mail.com' },
+      defaults: {
+        nama: 'Admin',
+        email: 'admin@mail.com',
+        password: adminPass,
+        role: 'admin',
+        jabatan: 'Administrator',
+        is_active: true,
+      },
+    });
+    if (!adminCreated && !adminUser.is_active) {
+      adminUser.is_active = true;
+      await adminUser.save();
     }
+
+    // 2. Pastikan Karyawan Demo selalu ada
+    const [karyawanUser, karyawanCreated] = await User.findOrCreate({
+      where: { email: 'karyawan@mail.com' },
+      defaults: {
+        nama: 'Karyawan Demo',
+        email: 'karyawan@mail.com',
+        password: karyawanPass,
+        role: 'karyawan',
+        jabatan: 'Staff IT',
+        no_hp: '081234567890',
+        is_active: true,
+      },
+    });
+
+    if (karyawanCreated) {
+      console.log('✓ Akun Karyawan Demo (karyawan@mail.com) berhasil dibuat otomatis.');
+    } else {
+      // Pastikan password & status aktif jika user sudah ada sebelumnya
+      const match = await bcrypt.compare('karyawan123', karyawanUser.password);
+      if (!match || !karyawanUser.is_active) {
+        karyawanUser.password = karyawanPass;
+        karyawanUser.is_active = true;
+        await karyawanUser.save();
+        console.log('✓ Password & status akun Karyawan Demo disinkronkan kembali.');
+      }
+    }
+
+    console.log('✓ Akun default demo (admin & karyawan) siap digunakan.');
   } catch (err) {
     console.warn('Gagal seed default users:', err.message);
   }
