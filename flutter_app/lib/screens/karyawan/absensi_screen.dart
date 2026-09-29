@@ -1,10 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:geolocator/geolocator.dart';
 import '../../core/api_service.dart';
-import '../../core/constants.dart';
+import 'verifikasi_wajah_screen.dart';
 
 class AbsensiScreen extends StatefulWidget {
   final bool initialIsMasuk;
@@ -29,8 +26,6 @@ class _AbsensiScreenState extends State<AbsensiScreen> {
   bool _sudahPulang = false;
   String? _jamMasuk;
   String? _jamPulang;
-
-  bool _processing = false;
 
   @override
   void initState() {
@@ -108,186 +103,15 @@ class _AbsensiScreenState extends State<AbsensiScreen> {
       return;
     }
 
-    setState(() => _processing = true);
+    final sukses = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => VerifikasiWajahScreen(isMasuk: isMasuk),
+      ),
+    );
 
-    try {
-      // 1. Ambil Lokasi GPS
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-        setState(() => _processing = false);
-        _tampilkanAlert('Izin Lokasi', 'Izin lokasi (GPS) diperlukan untuk validasi kehadiran.');
-        return;
-      }
-
-      final isGpsOn = await Geolocator.isLocationServiceEnabled();
-      if (!isGpsOn) {
-        setState(() => _processing = false);
-        _tampilkanAlert('GPS Tidak Aktif', 'Harap aktifkan GPS / Lokasi perangkat Anda terlebih dahulu.');
-        return;
-      }
-
-      Position position;
-      try {
-        position = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.high,
-            timeLimit: Duration(seconds: 10),
-          ),
-        );
-      } catch (_) {
-        position = await Geolocator.getLastKnownPosition() ??
-            await Geolocator.getCurrentPosition(
-              locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
-            );
-      }
-
-      // 2. Ambil Foto Kamera Depan (Face Recognition)
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(
-        source: ImageSource.camera,
-        preferredCameraDevice: CameraDevice.front,
-        imageQuality: 80,
-      );
-
-      if (picked == null) {
-        setState(() => _processing = false);
-        return; // Dibatalkan oleh pengguna
-      }
-
-      final fotoFile = File(picked.path);
-
-      // 3. Konfirmasi / Submit ke Backend
-      if (!mounted) return;
-      _konfirmasiDanKirim(fotoFile, position, isMasuk);
-    } catch (e) {
-      setState(() => _processing = false);
-      _tampilkanAlert('Kesalahan', 'Gagal memproses absensi: $e');
+    if (sukses == true) {
+      _muatStatus();
     }
-  }
-
-  void _konfirmasiDanKirim(File foto, Position position, bool isMasuk) {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        bool sending = false;
-        String? dialogError;
-
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Text(isMasuk ? 'Konfirmasi Absen Masuk' : 'Konfirmasi Absen Pulang'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      foto,
-                      height: 180,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on, color: Colors.green, size: 18),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'GPS: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}',
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF4B5563)),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (dialogError != null) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      dialogError!,
-                      style: const TextStyle(color: Colors.red, fontSize: 12),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            actions: [
-              if (!sending)
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    setState(() => _processing = false);
-                  },
-                  child: const Text('Batal'),
-                ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isMasuk ? AppConstants.primaryColor : const Color(0xFF3F7A38),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: sending
-                    ? null
-                    : () async {
-                        setDialogState(() {
-                          sending = true;
-                          dialogError = null;
-                        });
-
-                        final messenger = ScaffoldMessenger.of(context);
-                        try {
-                          final hasil = isMasuk
-                              ? await ApiService.absenMasuk(
-                                  foto: foto,
-                                  lat: position.latitude,
-                                  lng: position.longitude,
-                                )
-                              : await ApiService.absenPulang(
-                                  foto: foto,
-                                  lat: position.latitude,
-                                  lng: position.longitude,
-                                );
-
-                          if (!ctx.mounted) return;
-                          Navigator.pop(ctx);
-                          if (mounted) setState(() => _processing = false);
-
-                          messenger.showSnackBar(
-                            SnackBar(
-                              backgroundColor: Colors.green.shade700,
-                              content: Text(hasil['message'] ?? 'Absen berhasil!'),
-                            ),
-                          );
-
-                          // Muat ulang status hari ini
-                          await _muatStatus();
-                        } catch (err) {
-                          setDialogState(() {
-                            sending = false;
-                            dialogError = err.toString();
-                          });
-                        }
-                      },
-                child: sending
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      )
-                    : const Text('Kirim Absensi'),
-              ),
-            ],
-          ),
-        );
-      },
-    ).then((_) {
-      if (mounted) setState(() => _processing = false);
-    });
   }
 
   void _tampilkanAlert(String title, String pesan) {
@@ -659,7 +483,7 @@ class _AbsensiScreenState extends State<AbsensiScreen> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton.icon(
-                          onPressed: _processing ? null : _mulaiAbsen,
+                          onPressed: _mulaiAbsen,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _isMasukSelected
                                 ? const Color(0xFF4F5BA8)
@@ -670,16 +494,7 @@ class _AbsensiScreenState extends State<AbsensiScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          icon: _processing
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(Icons.photo_camera, size: 20),
+                          icon: const Icon(Icons.photo_camera, size: 20),
                           label: Text(
                             _isMasukSelected
                                 ? 'Mulai Absen Masuk'
