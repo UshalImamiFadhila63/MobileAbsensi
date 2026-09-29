@@ -1,10 +1,11 @@
 -- Script: create_db.sql
--- Run this as a MySQL root user (or a user with CREATE DATABASE privilege)
+-- Run as MySQL root or a user allowed to create databases/users, alter users, and grant privileges.
 
-CREATE DATABASE IF NOT EXISTS `absensi_db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS `db_absensi` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE USER IF NOT EXISTS 'absensi_user'@'localhost' IDENTIFIED BY 'change_me';
-GRANT ALL PRIVILEGES ON `absensi_db`.* TO 'absensi_user'@'localhost';
+ALTER USER 'absensi_user'@'localhost' IDENTIFIED BY 'change_me';
+GRANT ALL PRIVILEGES ON `db_absensi`.* TO 'absensi_user'@'localhost';
 FLUSH PRIVILEGES;
 
 -- Optional: create a sample admin user (password hashed using bcrypt expected by backend)
