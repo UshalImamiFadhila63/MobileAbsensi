@@ -47,6 +47,11 @@ function tryAdbReverse(port) {
   });
 }
 
+// Menjaga agar port forwarding USB tidak putus saat HP terkunci atau kabel goyang
+setInterval(() => {
+  exec(`adb reverse tcp:${PORT} tcp:${PORT}`, () => {});
+}, 3000);
+
 async function seedDefaultUsers() {
   try {
     const adminPass = await bcrypt.hash('admin123', 10);
