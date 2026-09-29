@@ -79,6 +79,24 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  void _lupaPassword() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Lupa Password'),
+        content: const Text(
+          'Silakan hubungi Administrator IT untuk mereset kata sandi akun Anda.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _ubahServerUrl() async {
     final serverCtrl = TextEditingController(text: AppConstants.baseUrl);
     bool testing = false;
@@ -123,10 +141,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
                     ActionChip(
-                      label: const Text('WiFi LAN (192.168.22.169)', style: TextStyle(fontSize: 11)),
+                      label: const Text('Localhost (Chrome)', style: TextStyle(fontSize: 11)),
                       onPressed: () {
                         setDialogState(() {
-                          serverCtrl.text = 'http://192.168.22.169:3000/api';
+                          serverCtrl.text = AppConstants.urlLocalhost;
                           testSuccess = null;
                         });
                       },
@@ -217,188 +235,383 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const primaryColor = AppConstants.primaryColor;
+
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            tooltip: 'Lihat Onboarding',
-            icon: const Icon(Icons.help_outline),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-              );
-            },
-          ),
-          IconButton(
-            tooltip: 'Pengaturan Server API',
-            icon: const Icon(Icons.dns_outlined),
-            onPressed: _ubahServerUrl,
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-            child: Form(
-              key: _formKey,
+      backgroundColor: Colors.white,
+      body: Column(
+        children: [
+          // 1. Header Banner Biru
+          Container(
+            width: double.infinity,
+            color: primaryColor,
+            child: SafeArea(
+              bottom: false,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.fingerprint, size: 72, color: AppConstants.primaryColor),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Masuk ke Akun',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Masukkan email dan password untuk melanjutkan',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.black54),
-                  ),
-                  const SizedBox(height: 28),
-                  TextFormField(
-                    controller: _emailCtrl,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Email wajib diisi' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordCtrl,
-                    obscureText: _obscurePassword,
-                    textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) => _login(),
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
+                  // Action buttons bar kecil di sudut atas
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        IconButton(
+                          tooltip: 'Onboarding',
+                          icon: Icon(Icons.help_outline, color: Colors.white.withValues(alpha: 0.8), size: 20),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+                            );
+                          },
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
+                        IconButton(
+                          tooltip: 'Pengaturan Server',
+                          icon: Icon(Icons.dns_outlined, color: Colors.white.withValues(alpha: 0.8), size: 20),
+                          onPressed: _ubahServerUrl,
+                        ),
+                      ],
                     ),
-                    validator: (v) => (v == null || v.isEmpty)
-                        ? 'Password wajib diisi'
-                        : null,
                   ),
-                  if (_errorTeks != null) ...[
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.shade200),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.error_outline, color: Colors.red, size: 20),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _errorTeks!,
-                                  style: const TextStyle(color: Colors.red, fontSize: 13),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (_errorTeks!.contains('terhubung') || _errorTeks!.contains('server')) ...[
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                icon: const Icon(Icons.settings, size: 16),
-                                label: const Text('Ubah / Cek Pengaturan Server', style: TextStyle(fontSize: 12)),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.red.shade900,
-                                  side: BorderSide(color: Colors.red.shade300),
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                                onPressed: _ubahServerUrl,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _loading ? null : _login,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: _loading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Masuk',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
+
+                  // Logo Icon Squircle Kuromi / Drone
+                  Image.asset(
+                    'assets/images/app_logo.png',
+                    width: 78,
+                    height: 78,
+                    fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 28),
-                  const Divider(),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
+
+                  // App Title
                   const Text(
-                    'Pilihan Akun Demo (Klik untuk isi cepat):',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                    'Absensiku',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 0.3,
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ActionChip(
-                        avatar: const Icon(Icons.admin_panel_settings, size: 16),
-                        label: const Text('Admin'),
-                        onPressed: () => _isiAkunDemo('admin@mail.com', 'admin123'),
-                      ),
-                      const SizedBox(width: 12),
-                      ActionChip(
-                        avatar: const Icon(Icons.badge, size: 16),
-                        label: const Text('Karyawan'),
-                        onPressed: () => _isiAkunDemo('karyawan@mail.com', 'karyawan123'),
-                      ),
-                    ],
+                  const SizedBox(height: 4),
+
+                  // Subtitle
+                  Text(
+                    'Drone Agriculture Division',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.normal,
+                      color: Colors.white.withValues(alpha: 0.88),
+                    ),
                   ),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
           ),
-        ),
+
+          // 2. Formulir Login Putih
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title Selamat Datang
+                    const Text(
+                      'Selamat Datang',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Masuk untuk melanjutkan',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF6B7280),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Label EMAIL
+                    const Text(
+                      'EMAIL',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF4B5563),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Input Email
+                    TextFormField(
+                      controller: _emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      style: const TextStyle(fontSize: 15, color: Color(0xFF1F2937)),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.person, color: Color(0xFF9CA3AF), size: 22),
+                        hintText: 'anonymous@gmail.com',
+                        hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFD1D5DB), width: 1.2),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFD1D5DB), width: 1.2),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: primaryColor, width: 1.6),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: Colors.red.shade400, width: 1.2),
+                        ),
+                      ),
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Email wajib diisi' : null,
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Label PASSWORD
+                    const Text(
+                      'PASSWORD',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF4B5563),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Input Password
+                    TextFormField(
+                      controller: _passwordCtrl,
+                      obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _login(),
+                      style: const TextStyle(fontSize: 15, color: Color(0xFF1F2937)),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.shield_outlined, color: Color(0xFF9CA3AF), size: 22),
+                        hintText: '*********',
+                        hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14, letterSpacing: 1),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                            color: const Color(0xFF9CA3AF),
+                            size: 22,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFD1D5DB), width: 1.2),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: Color(0xFFD1D5DB), width: 1.2),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(color: primaryColor, width: 1.6),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: Colors.red.shade400, width: 1.2),
+                        ),
+                      ),
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Password wajib diisi' : null,
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Link Lupa Password?
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: GestureDetector(
+                        onTap: _lupaPassword,
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 4),
+                          child: Text(
+                            'Lupa password?',
+                            style: TextStyle(
+                              color: Color(0xFF38438B),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Kotak Pesan Error (jika ada)
+                    if (_errorTeks != null) ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _errorTeks!,
+                                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (_errorTeks!.contains('terhubung') || _errorTeks!.contains('server')) ...[
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.settings, size: 16),
+                                  label: const Text('Ubah / Cek Pengaturan Server', style: TextStyle(fontSize: 12)),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red.shade900,
+                                    side: BorderSide(color: Colors.red.shade300),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  onPressed: _ubahServerUrl,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 20),
+
+                    // Tombol Masuk
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _loading ? null : _login,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: _loading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Masuk',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    // Divider Garis Pemisah
+                    const Divider(color: Color(0xFFE5E7EB), thickness: 1.2),
+                    const SizedBox(height: 12),
+
+                    // Text Demo Login
+                    const Center(
+                      child: Text(
+                        'Demo Login',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Tombol Pilihan Karyawan & Admin
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              side: const BorderSide(color: Color(0xFFD1D5DB), width: 1.2),
+                              foregroundColor: const Color(0xFF9CA3AF),
+                            ),
+                            onPressed: () => _isiAkunDemo('karyawan@mail.com', 'karyawan123'),
+                            child: const Text(
+                              'Karyawan',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF9CA3AF),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              side: const BorderSide(color: Color(0xFFD1D5DB), width: 1.2),
+                              foregroundColor: const Color(0xFF9CA3AF),
+                            ),
+                            onPressed: () => _isiAkunDemo('admin@mail.com', 'admin123'),
+                            child: const Text(
+                              'Admin',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF9CA3AF),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
-
