@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/api_service.dart';
+import '../../core/constants.dart';
 import '../../core/session.dart';
 import 'absen_screen.dart';
 
@@ -117,7 +118,7 @@ class _KartuAbsen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 12),
           child: Column(
             children: [
-              Icon(icon, size: 36, color: sudah ? Colors.green : (aktif ? Colors.indigo : Colors.grey)),
+              Icon(icon, size: 36, color: sudah ? Colors.green : (aktif ? AppConstants.primaryColor : Colors.grey)),
               const SizedBox(height: 12),
               Text(judul, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),

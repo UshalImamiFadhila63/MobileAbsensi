@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
 
-void main() {
+import 'core/constants.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AppConstants.initBaseUrl();
   runApp(const AbsensiApp());
 }
 
@@ -14,9 +18,15 @@ class AbsensiApp extends StatelessWidget {
       title: 'Absensi App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorSchemeSeed: Colors.indigo,
+        colorSchemeSeed: AppConstants.primaryColor,
         useMaterial3: true,
         appBarTheme: const AppBarTheme(centerTitle: true),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppConstants.primaryColor,
+            foregroundColor: Colors.white,
+          ),
+        ),
       ),
       home: const SplashScreen(),
     );
