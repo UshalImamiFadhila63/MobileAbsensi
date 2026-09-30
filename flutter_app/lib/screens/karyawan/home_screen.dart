@@ -134,173 +134,187 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 1. HEADER BIRU DENGAN AVATAR & NOTIFIKASI
+                    // 1. HEADER BIRU & KARTU FLOATING ABSENSI (PERSIS FIGMA)
                     Stack(
-                      clipBehavior: Clip.none,
                       children: [
+                        // Background biru di bagian atas (Hero Banner)
                         Container(
+                          height: 200 + MediaQuery.of(context).padding.top,
                           width: double.infinity,
                           color: primaryColor,
-                          padding: const EdgeInsets.fromLTRB(20, 48, 20, 52),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  // Avatar Lingkaran Inisial
-                                  Container(
-                                    width: 44,
-                                    height: 44,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF9AA7DD),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      _getInitials(_nama),
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _salamWaktu(),
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.white.withValues(alpha: 0.88),
-                                        ),
-                                      ),
-                                      Text(
-                                        _nama,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              // Lonceng Notifikasi
-                              IconButton(
-                                icon: const Icon(Icons.notifications, color: Colors.white, size: 24),
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Tidak ada notifikasi baru saat ini.')),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
                         ),
 
-                        // 2. KARTU FLOATING ABSENSI (JAM MASUK, JAM PULANG, ABSENSI SEKARANG)
-                        Positioned(
-                          left: 20,
-                          right: 20,
-                          bottom: -38,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: const Color(0xFFE5E7EB), width: 1.2),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 14,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            padding: const EdgeInsets.all(16),
+                        // Konten: Avatar & User Info, dilanjutkan Kartu Floating Absensi
+                        SafeArea(
+                          bottom: false,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // Baris Avatar, Salam & Nama, Notifikasi
                                 Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Expanded(
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF8FAFC),
-                                          borderRadius: BorderRadius.circular(14),
+                                    Row(
+                                      children: [
+                                        // Avatar Lingkaran Inisial
+                                        Container(
+                                          width: 44,
+                                          height: 44,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF9AA7DD),
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: Colors.white.withValues(alpha: 0.3),
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            _getInitials(_nama),
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
                                         ),
-                                        child: Column(
+                                        const SizedBox(width: 12),
+                                        Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            const Text(
-                                              'Jam Masuk',
-                                              style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-                                            ),
-                                            const SizedBox(height: 4),
                                             Text(
-                                              _jamMasuk ?? '—:—',
+                                              _salamWaktu(),
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: Colors.white.withValues(alpha: 0.88),
+                                              ),
+                                            ),
+                                            Text(
+                                              _nama,
                                               style: const TextStyle(
                                                 fontSize: 18,
                                                 fontWeight: FontWeight.bold,
-                                                color: Color(0xFF111827),
+                                                color: Colors.white,
                                               ),
                                             ),
                                           ],
                                         ),
-                                      ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF8FAFC),
-                                          borderRadius: BorderRadius.circular(14),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            const Text(
-                                              'Jam Pulang',
-                                              style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              _jamPulang ?? '—:—',
-                                              style: const TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF111827),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                                    // Lonceng Notifikasi
+                                    IconButton(
+                                      icon: const Icon(Icons.notifications, color: Colors.white, size: 24),
+                                      onPressed: () {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Tidak ada notifikasi baru saat ini.')),
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 14),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 48,
-                                  child: ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: primaryColor,
-                                      foregroundColor: Colors.white,
-                                      elevation: 0,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
+
+                                const SizedBox(height: 18),
+
+                                // Kartu Floating Absensi (Jam Masuk, Jam Pulang, Absensi Sekarang)
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: const Color(0xFFE5E7EB), width: 1.2),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.06),
+                                        blurRadius: 14,
+                                        offset: const Offset(0, 6),
                                       ),
-                                    ),
-                                    onPressed: () => _bukaAbsensi(),
-                                    icon: const Icon(Icons.camera_alt, size: 18),
-                                    label: const Text(
-                                      'Absensi Sekarang',
-                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                                    ),
+                                    ],
+                                  ),
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF8FAFC),
+                                                borderRadius: BorderRadius.circular(14),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    'Jam Masuk',
+                                                    style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    _jamMasuk ?? '—:—',
+                                                    style: const TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Color(0xFF111827),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF8FAFC),
+                                                borderRadius: BorderRadius.circular(14),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    'Jam Pulang',
+                                                    style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    _jamPulang ?? '—:—',
+                                                    style: const TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Color(0xFF111827),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 14),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        height: 48,
+                                        child: ElevatedButton.icon(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: primaryColor,
+                                            foregroundColor: Colors.white,
+                                            elevation: 0,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                          ),
+                                          onPressed: () => _bukaAbsensi(),
+                                          icon: const Icon(Icons.camera_alt, size: 18),
+                                          label: const Text(
+                                            'Absensi Sekarang',
+                                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -310,7 +324,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
 
-                    const SizedBox(height: 56),
+                    const SizedBox(height: 20),
 
                     // 3. MENU CEPAT
                     const Padding(
