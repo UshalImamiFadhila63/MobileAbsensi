@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/api_service.dart';
 import 'verifikasi_wajah_screen.dart';
+import 'validasi_lokasi_screen.dart';
 
 class AbsensiScreen extends StatefulWidget {
   final bool initialIsMasuk;
@@ -243,18 +244,35 @@ class _AbsensiScreenState extends State<AbsensiScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE5E7EB),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              'Kantor Pusat',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF374151),
+                          InkWell(
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const ValidasiLokasiScreen(showBackButton: true),
+                                ),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE5E7EB),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.location_on, size: 14, color: Color(0xFF374151)),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Kantor Pusat',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF374151),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/api_service.dart';
 import '../../core/constants.dart';
+import 'detail_absensi_screen.dart';
 
 class RiwayatAbsenScreen extends StatefulWidget {
   const RiwayatAbsenScreen({super.key});
@@ -14,6 +15,7 @@ class _RiwayatAbsenScreenState extends State<RiwayatAbsenScreen> {
   String _selectedFilter = 'Semua'; // 'Semua', 'Hadir', 'Terlambat', 'Izin Cuti'
   bool _loading = true;
   List<Map<String, dynamic>> _listRiwayat = [];
+  Map<String, dynamic>? _riwayatTerpilih;
 
   @override
   void initState() {
@@ -33,56 +35,66 @@ class _RiwayatAbsenScreenState extends State<RiwayatAbsenScreen> {
     {
       'id': 1,
       'tanggal': '2026-08-18',
+      'tanggal_lengkap': 'Jumat, 18 Agustus 2026',
       'hari': 'Jumat',
       'tgl': '18',
       'bulan': 'AGU',
       'status': 'Hadir',
       'jam_masuk': '07:30',
       'jam_pulang': '17:05',
+      'total_jam': '9 jam 35 menit',
       'lokasi': 'Kantor Pusat (-6.20000, 106.81666)',
     },
     {
       'id': 2,
       'tanggal': '2026-08-17',
+      'tanggal_lengkap': 'Kamis, 17 Agustus 2026',
       'hari': 'Kamis',
       'tgl': '17',
       'bulan': 'AGU',
       'status': 'Hadir',
       'jam_masuk': '08:00',
       'jam_pulang': '17:00',
+      'total_jam': '9 jam',
       'lokasi': 'Kantor Pusat (-6.20000, 106.81666)',
     },
     {
       'id': 3,
       'tanggal': '2026-08-16',
+      'tanggal_lengkap': 'Rabu, 16 Agustus 2026',
       'hari': 'Rabu',
       'tgl': '16',
       'bulan': 'AGU',
       'status': 'Terlambat',
       'jam_masuk': '09:15',
       'jam_pulang': '17:00',
+      'total_jam': '7 jam 45 menit',
       'lokasi': 'Kantor Pusat (-6.20000, 106.81666)',
     },
     {
       'id': 4,
       'tanggal': '2026-08-15',
+      'tanggal_lengkap': 'Selasa, 15 Agustus 2026',
       'hari': 'Selasa',
       'tgl': '15',
       'bulan': 'AGU',
       'status': 'Izin Cuti',
       'jam_masuk': '—',
       'jam_pulang': '—',
+      'total_jam': '—',
       'lokasi': 'Izin Dinas / Cuti Tahunan',
     },
     {
       'id': 5,
       'tanggal': '2026-08-14',
+      'tanggal_lengkap': 'Senin, 14 Agustus 2026',
       'hari': 'Senin',
       'tgl': '14',
       'bulan': 'AGU',
       'status': 'Hadir',
       'jam_masuk': '07:55',
       'jam_pulang': '17:20',
+      'total_jam': '9 jam 42 menit',
       'lokasi': 'Kantor Pusat (-6.20000, 106.81666)',
     },
   ];
@@ -160,82 +172,11 @@ class _RiwayatAbsenScreenState extends State<RiwayatAbsenScreen> {
   }
 
   void _bukaDetail(Map<String, dynamic> item) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${item['hari']}, ${item['tgl']} ${item['bulan']}',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                _buildStatusPill(item['status'] ?? 'Hadir'),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 8),
-            _buildDetailRow('Jam Masuk', item['jam_masuk'] ?? '—', Icons.login),
-            const SizedBox(height: 10),
-            _buildDetailRow('Jam Pulang', item['jam_pulang'] ?? '—', Icons.logout),
-            const SizedBox(height: 10),
-            _buildDetailRow('Lokasi Kantor', item['lokasi'] ?? 'Kantor Pusat GPS Verifikasi', Icons.location_on_outlined),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppConstants.primaryColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Tutup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
-    );
+    setState(() {
+      _riwayatTerpilih = item;
+    });
   }
 
-  Widget _buildDetailRow(String label, String value, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: const Color(0xFF6B7280)),
-        const SizedBox(width: 10),
-        Text('$label: ', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 14)),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF111827)),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildStatusPill(String status) {
     Color bg = const Color(0xFFDCFCE7);
@@ -268,6 +209,13 @@ class _RiwayatAbsenScreenState extends State<RiwayatAbsenScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_riwayatTerpilih != null) {
+      return DetailAbsensiScreen(
+        item: _riwayatTerpilih!,
+        onBack: () => setState(() => _riwayatTerpilih = null),
+      );
+    }
+
     // Hitung ringkasan statistik
     int countHadir = 0;
     int countTerlambat = 0;
