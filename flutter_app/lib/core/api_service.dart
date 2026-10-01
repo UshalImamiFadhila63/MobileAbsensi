@@ -204,6 +204,14 @@ class ApiService {
     return _handle(res);
   }
 
+  static Future<List<dynamic>> laporanSaya() async {
+    final res = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/laporan/saya'),
+      headers: await _headers(),
+    ).timeout(const Duration(seconds: 15));
+    return _handleList(res);
+  }
+
   static Future<List<dynamic>> rekapLaporan() async {
     final res = await http.get(
       Uri.parse('${AppConstants.baseUrl}/laporan/rekap'),

@@ -81,3 +81,8 @@ CREATE TABLE `laporan` (
   KEY `laporan_user_id_idx` (`user_id`),
   CONSTRAINT `laporan_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Akun Default Demo (Admin & Karyawan)
+INSERT IGNORE INTO `users` (`id`, `nama`, `email`, `password`, `role`, `jabatan`, `no_hp`, `is_active`, `createdAt`, `updatedAt`) VALUES
+(1, 'Admin', 'admin@mail.com', '$2a$10$y2cHQ3/HxHkKJuBWU1.oq.dKHl8vzwkxHLIEkKDF0rgRqPoD94Dba', 'admin', 'Administrator', NULL, 1, NOW(), NOW()),
+(2, 'Karyawan Demo', 'karyawan@mail.com', '$2a$10$ZMTRXxbpY355bQy0TDQBauPNir52e6o74lW4pdd0xLb1ZgiIDjZIS', 'karyawan', 'Staff IT', '081234567890', 1, NOW(), NOW());

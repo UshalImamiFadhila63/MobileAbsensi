@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS `laporan` (
 
 SET FOREIGN_KEY_CHECKS = 1;
 
--- Optional: insert an admin user (password must be bcrypt-hashed by you)
--- INSERT INTO `users` (nama, email, password, role, createdAt, updatedAt) VALUES
--- ('Admin', 'admin@example.com', '$2a$10$...bcrypt-hash...', 'admin', NOW(), NOW());
+-- Akun Default Demo (Admin & Karyawan)
+INSERT IGNORE INTO `users` (`id`, `nama`, `email`, `password`, `role`, `jabatan`, `no_hp`, `is_active`, `createdAt`, `updatedAt`) VALUES
+(1, 'Admin', 'admin@mail.com', '$2a$10$y2cHQ3/HxHkKJuBWU1.oq.dKHl8vzwkxHLIEkKDF0rgRqPoD94Dba', 'admin', 'Administrator', NULL, 1, NOW(), NOW()),
+(2, 'Karyawan Demo', 'karyawan@mail.com', '$2a$10$ZMTRXxbpY355bQy0TDQBauPNir52e6o74lW4pdd0xLb1ZgiIDjZIS', 'karyawan', 'Staff IT', '081234567890', 1, NOW(), NOW());
