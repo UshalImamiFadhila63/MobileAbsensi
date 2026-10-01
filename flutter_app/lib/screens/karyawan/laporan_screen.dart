@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/api_service.dart';
 import '../../core/constants.dart';
+import 'buat_laporan_screen.dart';
+import 'detail_laporan_screen.dart';
 
 class LaporanScreen extends StatefulWidget {
   const LaporanScreen({super.key});
@@ -14,6 +16,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
   String _selectedFilter = 'Semua'; // 'Semua', 'Terkirim', 'Draft'
   bool _loading = true;
   List<Map<String, dynamic>> _listLaporan = [];
+  Map<String, dynamic>? _laporanTerpilih;
 
   // Data demo fallback yang persis seperti pada desain mockup
   final List<Map<String, dynamic>> _demoLaporan = [
@@ -23,7 +26,16 @@ class _LaporanScreenState extends State<LaporanScreen> {
       'tanggal': '17 Agustus 2026',
       'waktu': '16:30',
       'status': 'Terkirim',
-      'isi_laporan': 'Kegiatan operasional drone sprayer pada Blok A seluas 8 Hektar selesai sesuai SOP.',
+      'jenis_kegiatan': 'Penyemprotan Pestisida',
+      'lokasi': 'Sawah Blok A — Karawang',
+      'unit_drone': 'DA-001 (DJI Agras T40)',
+      'luas_area': '8 Ha',
+      'uraian_pekerjaan':
+          'Penyemprotan pestisida dilakukan pada lahan Blok A seluas 8 Ha. Drone DA-001 beroperasi dari pukul 07.00 – 11.30. Seluruh area berhasil disemprot dengan dosis sesuai anjuran.',
+      'hasil': 'Penyemprotan 100% selesai. Tidak ada kendala signifikan.',
+      'rencana_esok': 'Penyemprotan Blok B — 5 Ha dengan drone DA-002.',
+      'isi_laporan':
+          'Kegiatan operasional drone sprayer pada Blok A seluas 8 Hektar selesai sesuai SOP.',
     },
     {
       'id': 2,
@@ -31,7 +43,16 @@ class _LaporanScreenState extends State<LaporanScreen> {
       'tanggal': '16 Agt 2026',
       'waktu': '17:00',
       'status': 'Terkirim',
-      'isi_laporan': 'Pemetaan elevasi dan batas kontur lahan baru wilayah Subang menggunakan drone pemeta.',
+      'jenis_kegiatan': 'Survei dan Pemetaan Lahan',
+      'lokasi': 'Lahan Perkebunan Subang',
+      'unit_drone': 'DA-003 (DJI Mavic 3M)',
+      'luas_area': '15 Ha',
+      'uraian_pekerjaan':
+          'Pemetaan kontur elevasi dan indeks vegetasi NDVI lahan baru Subang selesai dipetakan untuk perencanaan irigasi presisi.',
+      'hasil': 'Peta ortomosaik resolusi tinggi selesai diproses di server GIS.',
+      'rencana_esok': 'Analisis data NDVI bersama tim agronomi internal.',
+      'isi_laporan':
+          'Pemetaan elevasi dan batas kontur lahan baru wilayah Subang menggunakan drone pemeta.',
     },
     {
       'id': 3,
@@ -39,7 +60,16 @@ class _LaporanScreenState extends State<LaporanScreen> {
       'tanggal': '15 Agt 2026',
       'waktu': '15:45',
       'status': 'Terkirim',
-      'isi_laporan': 'Pemeriksaan motor brushless, kalibrasi sensor kompas, dan pembersihan rotor unit DA-001 & DA-002.',
+      'jenis_kegiatan': 'Pemeliharaan Rutin Drone',
+      'lokasi': 'Hangar Drone Agrikultur',
+      'unit_drone': 'DA-001 & DA-002',
+      'luas_area': '-',
+      'uraian_pekerjaan':
+          'Pemeriksaan motor brushless, kalibrasi sensor kompas, dan pembersihan rotor unit DA-001 & DA-002 selesai sesuai SOP.',
+      'hasil': 'Kondisi unit drone 100% siap terbang operasional besok.',
+      'rencana_esok': 'Uji coba penerbangan sensor multispektral DA-003.',
+      'isi_laporan':
+          'Pemeriksaan motor brushless, kalibrasi sensor kompas, dan pembersihan rotor unit DA-001 & DA-002.',
     },
     {
       'id': 4,
@@ -47,7 +77,16 @@ class _LaporanScreenState extends State<LaporanScreen> {
       'tanggal': '14 Agt 2026',
       'waktu': '16:50',
       'status': 'Terkirim',
-      'isi_laporan': 'Penyebaran butiran pupuk urea dengan spreader drone selesai dengan presisi tinggi.',
+      'jenis_kegiatan': 'Penyebaran Pupuk Urea',
+      'lokasi': 'Sawah Blok B — Karawang',
+      'unit_drone': 'DA-002 (DJI Agras T40)',
+      'luas_area': '5 Ha',
+      'uraian_pekerjaan':
+          'Penyebaran butiran pupuk urea dengan spreader drone selesai dengan tingkat presisi dan sebaran merata.',
+      'hasil': 'Penyebaran pupuk 100% selesai sesuai takaran agronomis.',
+      'rencana_esok': 'Inspeksi visual perkembangan tunas pada Blok B.',
+      'isi_laporan':
+          'Penyebaran butiran pupuk urea dengan spreader drone selesai dengan presisi tinggi.',
     },
   ];
 
@@ -55,6 +94,14 @@ class _LaporanScreenState extends State<LaporanScreen> {
   void initState() {
     super.initState();
     _muatData();
+  }
+
+  String _formatTanggalIndo(DateTime dt) {
+    const namaBulan = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return '${dt.day} ${namaBulan[dt.month - 1]} ${dt.year}';
   }
 
   Future<void> _muatData() async {
@@ -72,21 +119,40 @@ class _LaporanScreenState extends State<LaporanScreen> {
 
         String tglFmt = tglRaw;
         if (dt != null) {
-          tglFmt = DateFormat('d MMMM yyyy', 'id_ID').format(dt);
+          tglFmt = _formatTanggalIndo(dt);
+        }
+
+        String waktuFmt = '16:00';
+        if (item['createdAt'] != null) {
+          try {
+            final dtCreated = DateTime.parse(item['createdAt'].toString()).toLocal();
+            waktuFmt = DateFormat('HH:mm').format(dtCreated);
+          } catch (_) {}
         }
 
         parsed.add({
           'id': item['id'],
           'judul': item['judul'] ?? 'Laporan Kegiatan',
           'tanggal': tglFmt,
-          'waktu': '16:00',
-          'status': 'Terkirim',
+          'waktu': waktuFmt,
+          'status': item['status'] ?? 'Terkirim',
           'isi_laporan': item['isi_laporan'] ?? '',
+          'jenis_kegiatan': item['jenis_kegiatan'] ?? item['judul'] ?? 'Penyemprotan Pestisida',
+          'lokasi': item['lokasi'] ?? 'Sawah Blok A — Karawang',
+          'unit_drone': item['unit_drone'] ?? 'DA-001 (DJI Agras T40)',
+          'luas_area': item['luas_area'] ?? '8 Ha',
+          'uraian_pekerjaan': item['uraian_pekerjaan'] ?? item['isi_laporan'] ?? '',
+          'hasil': item['hasil'] ?? 'Penyemprotan 100% selesai. Tidak ada kendala signifikan.',
+          'rencana_esok': item['rencana_esok'] ?? 'Penyemprotan Blok B — 5 Ha dengan drone DA-002.',
         });
       }
 
       setState(() {
-        _listLaporan = parsed.isNotEmpty ? parsed : _demoLaporan;
+        if (parsed.isNotEmpty) {
+          _listLaporan = [...parsed, ..._demoLaporan];
+        } else {
+          _listLaporan = _demoLaporan;
+        }
         _loading = false;
       });
     } catch (_) {
@@ -100,234 +166,20 @@ class _LaporanScreenState extends State<LaporanScreen> {
   }
 
   void _bukaDetailLaporan(Map<String, dynamic> item) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    'Laporan ${item['tanggal']}',
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-                  ),
-                ),
-                _buildStatusPill(item['status'] ?? 'Terkirim'),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              item['judul'] ?? '',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF111827)),
-            ),
-            const SizedBox(height: 14),
-            const Divider(),
-            const SizedBox(height: 10),
-            const Text(
-              'Deskripsi Kegiatan:',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF4B5563)),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              item['isi_laporan']?.isNotEmpty == true
-                  ? item['isi_laporan']
-                  : 'Tidak ada rincian tambahan.',
-              style: const TextStyle(fontSize: 14, color: Color(0xFF374151), height: 1.4),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppConstants.primaryColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Tutup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
-    );
+    setState(() {
+      _laporanTerpilih = item;
+    });
   }
 
-  void _bukaFormTambah() {
-    final formKey = GlobalKey<FormState>();
-    final judulCtrl = TextEditingController();
-    final isiCtrl = TextEditingController();
-    DateTime tanggal = DateTime.now();
-    bool submitting = false;
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          child: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Buat Laporan Baru',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF111827)),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Tanggal
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      side: const BorderSide(color: Color(0xFFD1D5DB)),
-                    ),
-                    icon: const Icon(Icons.calendar_today, size: 18, color: AppConstants.primaryColor),
-                    label: Text(
-                      DateFormat('dd MMMM yyyy', 'id_ID').format(tanggal),
-                      style: const TextStyle(color: Color(0xFF1F2937), fontSize: 14),
-                    ),
-                    onPressed: () async {
-                      final t = await showDatePicker(
-                        context: ctx,
-                        initialDate: tanggal,
-                        firstDate: DateTime.now().subtract(const Duration(days: 30)),
-                        lastDate: DateTime.now(),
-                      );
-                      if (t != null) setModalState(() => tanggal = t);
-                    },
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Judul Laporan
-                  TextFormField(
-                    controller: judulCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Judul Laporan',
-                      hintText: 'Contoh: Penyemprotan Blok A — 8 Ha',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                    ),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Judul wajib diisi' : null,
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Isi Laporan
-                  TextFormField(
-                    controller: isiCtrl,
-                    maxLines: 4,
-                    decoration: InputDecoration(
-                      labelText: 'Rincian Kegiatan',
-                      hintText: 'Tuliskan deskripsi pekerjaan atau pemeliharaan...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                    ),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Isi kegiatan wajib diisi' : null,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Tombol Kirim
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppConstants.primaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: submitting
-                          ? null
-                          : () async {
-                              if (!formKey.currentState!.validate()) return;
-                              setModalState(() => submitting = true);
-                              final messenger = ScaffoldMessenger.of(context);
-
-                              try {
-                                final res = await ApiService.submitLaporan(
-                                  tanggal: DateFormat('yyyy-MM-dd').format(tanggal),
-                                  judul: judulCtrl.text.trim(),
-                                  isiLaporan: isiCtrl.text.trim(),
-                                );
-
-                                if (!ctx.mounted) return;
-                                Navigator.pop(ctx);
-
-                                messenger.showSnackBar(
-                                  SnackBar(
-                                    backgroundColor: Colors.green.shade700,
-                                    content: Text(res['message'] ?? 'Laporan berhasil dikirim!'),
-                                  ),
-                                );
-
-                                await _muatData();
-                              } catch (e) {
-                                setModalState(() => submitting = false);
-                                messenger.showSnackBar(
-                                  SnackBar(backgroundColor: Colors.red, content: Text(e.toString())),
-                                );
-                              }
-                            },
-                      child: submitting
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                            )
-                          : const Text('Kirim Laporan', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+  Future<void> _bukaFormTambah() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => const BuatLaporanScreen(),
       ),
     );
+    if (result == true || mounted) {
+      await _muatData();
+    }
   }
 
   Widget _buildFilterChip(String label) {
@@ -380,6 +232,13 @@ class _LaporanScreenState extends State<LaporanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_laporanTerpilih != null) {
+      return DetailLaporanScreen(
+        item: _laporanTerpilih!,
+        onBack: () => setState(() => _laporanTerpilih = null),
+      );
+    }
+
     final filtered = _listLaporan.where((item) {
       if (_selectedFilter == 'Terkirim') {
         return (item['status'] ?? '').toString().toLowerCase() == 'terkirim';
@@ -392,44 +251,44 @@ class _LaporanScreenState extends State<LaporanScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppConstants.primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 3,
+        icon: const Icon(Icons.add_circle_outline, size: 20),
+        label: const Text(
+          'Buat Laporan Baru',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+        ),
+        onPressed: _bukaFormTambah,
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _muatData,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. Header (Riwayat Laporan + Tombol "+ Baru")
+              // 1. Header (Riwayat Laporan)
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    if (Navigator.canPop(context)) ...[
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Color(0xFF111827)),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     const Text(
                       'Riwayat Laporan',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF111827),
-                      ),
-                    ),
-                    // Tombol + Baru
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppConstants.primaryColor,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                      onPressed: _bukaFormTambah,
-                      child: const Text(
-                        '+ Baru',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        letterSpacing: -0.3,
                       ),
                     ),
                   ],
@@ -457,20 +316,64 @@ class _LaporanScreenState extends State<LaporanScreen> {
                     ? const Center(child: CircularProgressIndicator())
                     : filtered.isEmpty
                         ? ListView(
-                            children: const [
-                              Padding(
-                                padding: EdgeInsets.all(40),
-                                child: Center(
-                                  child: Text(
-                                    'Belum ada laporan',
-                                    style: TextStyle(color: Color(0xFF6B7280)),
+                            padding: const EdgeInsets.all(32),
+                            children: [
+                              const SizedBox(height: 40),
+                              Center(
+                                child: Container(
+                                  width: 64,
+                                  height: 64,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEEF2FF),
+                                    borderRadius: BorderRadius.circular(18),
                                   ),
+                                  child: const Icon(
+                                    Icons.description_outlined,
+                                    size: 32,
+                                    color: AppConstants.primaryColor,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              const Center(
+                                child: Text(
+                                  'Belum Ada Laporan',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF111827),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              const Center(
+                                child: Text(
+                                  'Buat laporan kegiatan harian Anda sekarang.',
+                                  style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Center(
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppConstants.primaryColor,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  ),
+                                  icon: const Icon(Icons.add, size: 18),
+                                  label: const Text(
+                                    'Buat Laporan Baru',
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  ),
+                                  onPressed: _bukaFormTambah,
                                 ),
                               ),
                             ],
                           )
                         : ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 80),
                             itemCount: filtered.length,
                             separatorBuilder: (_, __) => const SizedBox(height: 12),
                             itemBuilder: (context, i) {

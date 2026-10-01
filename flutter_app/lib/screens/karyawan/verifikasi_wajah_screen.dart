@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../core/api_service.dart';
+import 'validasi_lokasi_screen.dart';
 
 class VerifikasiWajahScreen extends StatefulWidget {
   final bool isMasuk;
@@ -40,7 +40,6 @@ class _VerifikasiWajahScreenState extends State<VerifikasiWajahScreen> {
 
   Future<void> _lanjutValidasiGps() async {
     setState(() => _loadingGps = true);
-    final messenger = ScaffoldMessenger.of(context);
 
     try {
       // 1. Cek & Minta Izin Lokasi GPS
@@ -95,30 +94,23 @@ class _VerifikasiWajahScreenState extends State<VerifikasiWajahScreen> {
         setState(() => _fotoWajah = fileToUpload);
       }
 
-      // 3. Kirim Absen Masuk / Pulang ke Backend
-      final hasil = widget.isMasuk
-          ? await ApiService.absenMasuk(
-              foto: fileToUpload,
-              lat: position.latitude,
-              lng: position.longitude,
-            )
-          : await ApiService.absenPulang(
-              foto: fileToUpload,
-              lat: position.latitude,
-              lng: position.longitude,
-            );
-
+      // 3. Lanjut ke Layar Validasi Lokasi
       if (!mounted) return;
       setState(() => _loadingGps = false);
 
-      messenger.showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.green.shade700,
-          content: Text(hasil['message'] ?? 'Absensi berhasil diverifikasi!'),
+      final sukses = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => ValidasiLokasiScreen(
+            isMasuk: widget.isMasuk,
+            fotoWajah: fileToUpload,
+            initialPosition: position,
+          ),
         ),
       );
 
-      Navigator.of(context).pop(true);
+      if (sukses == true && mounted) {
+        Navigator.of(context).pop(true);
+      }
     } catch (e) {
       if (mounted) setState(() => _loadingGps = false);
       _tampilkanAlert('Validasi Gagal', e.toString());

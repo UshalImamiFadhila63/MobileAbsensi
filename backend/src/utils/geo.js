@@ -1,3 +1,5 @@
+const dotenv = require('dotenv');
+
 // Menghitung jarak antara 2 koordinat (meter) pakai formula haversine
 function hitungJarakMeter(lat1, lng1, lat2, lng2) {
   const R = 6371000; // radius bumi dalam meter
@@ -16,9 +18,13 @@ function hitungJarakMeter(lat1, lng1, lat2, lng2) {
 }
 
 function isDalamRadiusKantor(lat, lng) {
-  const officeLat = parseFloat(process.env.OFFICE_LAT);
-  const officeLng = parseFloat(process.env.OFFICE_LNG);
-  const radius = parseFloat(process.env.OFFICE_RADIUS_METERS || '150');
+  try {
+    dotenv.config({ override: true });
+  } catch (_) {}
+
+  const officeLat = parseFloat(process.env.OFFICE_LAT || '-6.949161');
+  const officeLng = parseFloat(process.env.OFFICE_LNG || '107.645018');
+  const radius = parseFloat(process.env.OFFICE_RADIUS_METERS || '250');
 
   const jarak = hitungJarakMeter(lat, lng, officeLat, officeLng);
   return { valid: jarak <= radius, jarak };

@@ -126,10 +126,17 @@ exports.riwayatSaya = async (req, res) => {
 // REKAP ABSENSI untuk admin - semua karyawan
 exports.rekapAdmin = async (req, res) => {
   try {
-    const { tanggal, user_id } = req.query;
+    const { tanggal, user_id, bulan, tahun } = req.query;
     const where = {};
     if (tanggal) where.tanggal = tanggal;
     if (user_id) where.user_id = user_id;
+
+    if (bulan && tahun) {
+      const start = `${tahun}-${String(bulan).padStart(2, '0')}-01`;
+      const endDate = new Date(tahun, bulan, 0).getDate();
+      const end = `${tahun}-${String(bulan).padStart(2, '0')}-${endDate}`;
+      where.tanggal = { [Op.between]: [start, end] };
+    }
 
     const data = await Absensi.findAll({
       where,

@@ -4,6 +4,9 @@ import '../../core/constants.dart';
 import '../../core/session.dart';
 import '../login_screen.dart';
 import 'edit_profile_screen.dart';
+import 'ubah_password_screen.dart';
+import 'kebijakan_privasi_screen.dart';
+import 'components/notifikasi_karyawan_popup.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -76,92 +79,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _dialogUbahPassword() {
-    final oldPassCtrl = TextEditingController();
-    final newPassCtrl = TextEditingController();
-
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Ubah Password'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: oldPassCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Password Saat Ini',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: newPassCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Password Baru',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppConstants.primaryColor,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Permintaan ubah kata sandi berhasil diajukan.')),
-              );
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _dialogNotifikasi() {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Pengaturan Notifikasi'),
-        content: const Text('Pengingat jadwal absensi masuk & pulang aktif setiap hari kerja.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Tutup')),
-        ],
-      ),
-    );
-  }
-
-  void _dialogKebijakanPrivasi() {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Kebijakan Privasi'),
-        content: const SingleChildScrollView(
-          child: Text(
-            'Aplikasi Absensiku mengumpulkan foto swafoto dan koordinat lokasi GPS '
-            'hanya saat proses absensi kehadiran berlangsung, guna memastikan validitas kehadiran '
-            'pada divisi Drone Agriculture.',
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Mengerti')),
-        ],
-      ),
-    );
+    NotifikasiKaryawanPopup.show(context);
   }
 
   @override
@@ -349,7 +268,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 iconBg: const Color(0xFFDCFCE7),
                                 iconColor: const Color(0xFF16A34A),
                                 title: 'Ubah Password',
-                                onTap: _dialogUbahPassword,
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const UbahPasswordScreen()),
+                                  );
+                                },
                               ),
                               const Divider(height: 1, indent: 64, endIndent: 16, color: Color(0xFFF3F4F6)),
                               _buildMenuItem(
@@ -365,7 +288,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 iconBg: const Color(0xFFEDE9FE),
                                 iconColor: const Color(0xFF7C3AED),
                                 title: 'Kebijakan Privasi',
-                                onTap: _dialogKebijakanPrivasi,
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const KebijakanPrivasiScreen()),
+                                  );
+                                },
                               ),
                             ],
                           ),

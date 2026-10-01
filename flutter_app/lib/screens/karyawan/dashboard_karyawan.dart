@@ -7,14 +7,21 @@ import 'profile_screen.dart';
 import '../../core/constants.dart';
 
 class DashboardKaryawan extends StatefulWidget {
-  const DashboardKaryawan({super.key});
+  final int initialIndex;
+  const DashboardKaryawan({super.key, this.initialIndex = 0});
 
   @override
   State<DashboardKaryawan> createState() => _DashboardKaryawanState();
 }
 
 class _DashboardKaryawanState extends State<DashboardKaryawan> {
-  int _index = 0;
+  late int _index;
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.initialIndex;
+  }
 
   final _screens = const [
     HomeScreen(),

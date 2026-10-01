@@ -6,6 +6,7 @@ import 'absensi_screen.dart';
 import 'riwayat_absen_screen.dart';
 import 'laporan_screen.dart';
 import 'pengajuan_cuti_screen.dart';
+import 'components/notifikasi_karyawan_popup.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -205,11 +206,26 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                     // Lonceng Notifikasi
                                     IconButton(
-                                      icon: const Icon(Icons.notifications, color: Colors.white, size: 24),
+                                      icon: Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 26),
+                                          Positioned(
+                                            top: 2,
+                                            right: 2,
+                                            child: Container(
+                                              width: 8,
+                                              height: 8,
+                                              decoration: const BoxDecoration(
+                                                color: Color(0xFFEF4444),
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                       onPressed: () {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Tidak ada notifikasi baru saat ini.')),
-                                        );
+                                        NotifikasiKaryawanPopup.show(context);
                                       },
                                     ),
                                   ],

@@ -151,7 +151,23 @@ class ApiService {
     required String tanggalMulai,
     required String tanggalSelesai,
     required String alasan,
+    File? lampiran,
   }) async {
+    if (lampiran != null) {
+      final uri = Uri.parse('${AppConstants.baseUrl}/cuti');
+      final req = http.MultipartRequest('POST', uri);
+      req.headers.addAll(await _headers(json: false));
+      req.fields['jenis_cuti'] = jenisCuti;
+      req.fields['tanggal_mulai'] = tanggalMulai;
+      req.fields['tanggal_selesai'] = tanggalSelesai;
+      req.fields['alasan'] = alasan;
+      req.files.add(await http.MultipartFile.fromPath('lampiran', lampiran.path));
+
+      final streamed = await req.send().timeout(const Duration(seconds: 20));
+      final res = await http.Response.fromStream(streamed);
+      return _handle(res);
+    }
+
     final res = await http.post(
       Uri.parse('${AppConstants.baseUrl}/cuti'),
       headers: await _headers(),
@@ -195,11 +211,29 @@ class ApiService {
     required String tanggal,
     required String judul,
     required String isiLaporan,
+    String? jenisKegiatan,
+    String? lokasi,
+    String? unitDrone,
+    String? luasArea,
+    String? uraianPekerjaan,
+    String? hasil,
+    String? rencanaEsok,
   }) async {
     final res = await http.post(
       Uri.parse('${AppConstants.baseUrl}/laporan'),
       headers: await _headers(),
-      body: jsonEncode({'tanggal': tanggal, 'judul': judul, 'isi_laporan': isiLaporan}),
+      body: jsonEncode({
+        'tanggal': tanggal,
+        'judul': judul,
+        'isi_laporan': isiLaporan,
+        if (jenisKegiatan != null) 'jenis_kegiatan': jenisKegiatan,
+        if (lokasi != null) 'lokasi': lokasi,
+        if (unitDrone != null) 'unit_drone': unitDrone,
+        if (luasArea != null) 'luas_area': luasArea,
+        if (uraianPekerjaan != null) 'uraian_pekerjaan': uraianPekerjaan,
+        if (hasil != null) 'hasil': hasil,
+        if (rencanaEsok != null) 'rencana_esok': rencanaEsok,
+      }),
     ).timeout(const Duration(seconds: 15));
     return _handle(res);
   }
@@ -255,9 +289,15 @@ class ApiService {
     _handle(res);
   }
 
-  static Future<List<dynamic>> rekapAbsensiAdmin() async {
+  static Future<List<dynamic>> rekapAbsensiAdmin({int? bulan, int? tahun, String? tanggal}) async {
+    final query = <String, String>{};
+    if (bulan != null) query['bulan'] = bulan.toString();
+    if (tahun != null) query['tahun'] = tahun.toString();
+    if (tanggal != null) query['tanggal'] = tanggal;
+
+    final uri = Uri.parse('${AppConstants.baseUrl}/absensi/rekap').replace(queryParameters: query.isEmpty ? null : query);
     final res = await http.get(
-      Uri.parse('${AppConstants.baseUrl}/absensi/rekap'),
+      uri,
       headers: await _headers(),
     ).timeout(const Duration(seconds: 15));
     return _handleList(res);

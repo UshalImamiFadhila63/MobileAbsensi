@@ -5,6 +5,8 @@ import '../core/session.dart';
 import 'onboarding_screen.dart';
 import 'karyawan/dashboard_karyawan.dart';
 import 'admin/dashboard_admin.dart';
+import 'components/selamat_datang_popup.dart';
+import 'components/lupa_password_popup.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -48,13 +50,31 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => user['role'] == 'admin'
-              ? const DashboardAdmin()
-              : const DashboardKaryawan(),
-        ),
-        (route) => false,
+      final isAdmin = user['role'] == 'admin';
+      final nama = (user['nama'] != null && user['nama'].toString().isNotEmpty)
+          ? user['nama'].toString()
+          : (isAdmin ? 'Super Admin' : 'Lilit Ransink');
+      final roleTitle = isAdmin
+          ? 'Administrator'
+          : ((user['jabatan'] != null && user['jabatan'].toString().isNotEmpty)
+              ? user['jabatan'].toString()
+              : 'Teknisi Drone');
+
+      await SelamatDatangPopup.show(
+        context,
+        nama: nama,
+        roleTitle: roleTitle,
+        onLanjutkan: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => isAdmin
+                  ? const DashboardAdmin()
+                  : const DashboardKaryawan(),
+            ),
+            (route) => false,
+          );
+        },
       );
     } on ApiException catch (e) {
       if (mounted) setState(() => _errorTeks = e.message);
@@ -80,20 +100,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _lupaPassword() {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Lupa Password'),
-        content: const Text(
-          'Silakan hubungi Administrator IT untuk mereset kata sandi akun Anda.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Tutup'),
-          ),
-        ],
-      ),
+    LupaPasswordPopup.show(
+      context,
+      initialEmail: _emailCtrl.text.trim(),
     );
   }
 

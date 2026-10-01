@@ -24,6 +24,17 @@ const Laporan = sequelize.define('Laporan', {
     type: DataTypes.TEXT,
     allowNull: false,
   },
+  jenis_kegiatan: DataTypes.STRING,
+  lokasi: DataTypes.STRING,
+  unit_drone: DataTypes.STRING,
+  luas_area: DataTypes.STRING,
+  uraian_pekerjaan: DataTypes.TEXT,
+  hasil: DataTypes.TEXT,
+  rencana_esok: DataTypes.TEXT,
+  status: {
+    type: DataTypes.STRING,
+    defaultValue: 'Terkirim',
+  },
   lampiran: DataTypes.STRING,
 }, {
   tableName: 'laporan',
