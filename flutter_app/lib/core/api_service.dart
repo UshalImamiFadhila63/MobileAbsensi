@@ -340,6 +340,31 @@ class ApiService {
     return _handleList(res);
   }
 
+  // ---------- NOTIFIKASI ----------
+  static Future<List<dynamic>> getNotifikasi() async {
+    final res = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/notifikasi'),
+      headers: await _headers(),
+    ).timeout(const Duration(seconds: 15));
+    return _handleList(res);
+  }
+
+  static Future<void> tandaiNotifikasiDibaca(int id) async {
+    final res = await http.put(
+      Uri.parse('${AppConstants.baseUrl}/notifikasi/$id/read'),
+      headers: await _headers(),
+    ).timeout(const Duration(seconds: 15));
+    _handle(res);
+  }
+
+  static Future<void> tandaiSemuaNotifikasiDibaca() async {
+    final res = await http.put(
+      Uri.parse('${AppConstants.baseUrl}/notifikasi/read-all'),
+      headers: await _headers(),
+    ).timeout(const Duration(seconds: 15));
+    _handle(res);
+  }
+
   static dynamic _handle(http.Response res) {
     dynamic body;
     try {

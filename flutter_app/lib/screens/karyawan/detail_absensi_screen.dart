@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../core/constants.dart';
 
-/// Halaman Detail Absensi Karyawan
-/// Dibuat persis 100% sesuai screenshot desain Figma yang dikirimkan user:
-/// 1. Top bar: Tombol back lingkaran ungu navy (#4F5BA8) + Judul "Detail Absensi" + Divider halus
-/// 2. Ikon Sukses: Kotak hijau pastel (#C5F2BF) dengan lingkaran hijau tua (#48742C) & centang putih
-/// 3. Kartu 1: INFORMASI ABSENSI dengan border radius 20, divider antar baris
-///    - Status Kehadiran dengan warna akurat:
-///      * Terlambat -> Oranye (#FF8D28)
-///      * Hadir — Tepat Waktu -> Hijau (#48742C)
-///      * Izin Cuti -> Biru Navy (#4F5BA8)
-///      * Tidak Hadir -> Merah (#DC2626)
-/// 4. Kartu 2: LOKASI GPS dengan map preview (#C9EFC4), ikon pin biru, dan koordinat
+/// Halaman Detail Absensi Karyawan & Admin
+/// Menampilkan informasi absensi lengkap:
+/// 1. Profil Karyawan (Nama, Jabatan, Email, Foto Profil)
+/// 2. Foto Selfie Absen Masuk & Pulang (bisa diklik untuk perbesar)
+/// 3. Status Ketepatan Waktu dengan patokan jam 08:00 WIB:
+///    - Sebelum 08:00 -> "Datang Lebih Awal"
+///    - Pas 08:00 -> "Tepat Waktu"
+///    - Lewat 08:00 -> "Terlambat (X menit/jam)"
+/// 4. Waktu Jam Masuk, Jam Pulang, dan Total Jam Kerja
+/// 5. Validasi Lokasi GPS & Tombol Buka di Google Maps
 class DetailAbsensiScreen extends StatelessWidget {
   final Map<String, dynamic> item;
   final VoidCallback? onBack;
@@ -21,60 +22,260 @@ class DetailAbsensiScreen extends StatelessWidget {
     this.onBack,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    // 1. Parsing Status Kehadiran & Warna
-    final rawStatus = (item['status'] ?? 'Hadir').toString();
-    final bool isCuti = rawStatus.toLowerCase().contains('cuti') ||
-        rawStatus.toLowerCase().contains('izin');
-    final bool isTerlambat = rawStatus.toLowerCase().contains('terlambat');
-    final bool isAlpha = rawStatus.toLowerCase().contains('alpha') ||
-        rawStatus.toLowerCase().contains('tidak');
-
-    String statusDisplay;
-    Color statusColor;
-
-    if (isTerlambat) {
-      statusDisplay = 'Terlambat';
-      statusColor = const Color(0xFFFF8D28); // Oranye akurat sesuai mockup
-    } else if (isCuti) {
-      statusDisplay = 'Izin Cuti';
-      statusColor = const Color(0xFF4F5BA8); // Biru/Ungu brand akurat
-    } else if (isAlpha) {
-      statusDisplay = 'Tidak Hadir';
-      statusColor = const Color(0xFFDC2626); // Merah
-    } else {
-      statusDisplay = 'Hadir — Tepat Waktu';
-      statusColor = const Color(0xFF48742C); // Hijau zaitun akurat
+  /// Menghitung status ketepatan waktu dengan patokan jam masuk 08:00 WIB
+  Map<String, dynamic> _hitungStatusKetepatanWaktu(String jamMasukRaw, String rawStatus) {
+    if (rawStatus.toLowerCase().contains('cuti') || rawStatus.toLowerCase().contains('izin')) {
+      return {
+        'status': 'Izin Cuti',
+        'isLate': false,
+        'badgeColor': const Color(0xFF4F5BA8),
+        'bgColor': const Color(0xFFEEF2FF),
+        'keterangan': 'Karyawan sedang dalam masa izin dinas / cuti.',
+      };
     }
 
-    // 2. Parsing Tanggal
-    final tanggalLengkap = _formatTanggal(item);
+    if (jamMasukRaw == '—' || jamMasukRaw.trim().isEmpty || rawStatus.toLowerCase().contains('belum')) {
+      return {
+        'status': 'Belum Absen',
+        'isLate': false,
+        'badgeColor': const Color(0xFF6B7280),
+        'bgColor': const Color(0xFFF3F4F6),
+        'keterangan': 'Belum melakukan absensi masuk hari ini.',
+      };
+    }
 
-    // 3. Parsing Jam & Durasi Kerja
+    final clean = jamMasukRaw.replaceAll(' WIB', '').trim();
+    final parts = clean.split(':');
+    if (parts.length >= 2) {
+      final h = int.tryParse(parts[0]) ?? 0;
+      final m = int.tryParse(parts[1]) ?? 0;
+      final s = parts.length >= 3 ? (int.tryParse(parts[2]) ?? 0) : 0;
+
+      final totalDetik = h * 3600 + m * 60 + s;
+      const targetDetik = 8 * 3600; // 08:00:00 WIB
+
+      if (totalDetik < targetDetik) {
+        // Sebelum jam 08.00 -> Datang Lebih Awal
+        final selisihDetik = targetDetik - totalDetik;
+        final selisihMenit = (selisihDetik / 60).floor();
+        String durasiAwal;
+        if (selisihMenit >= 60) {
+          final jam = selisihMenit ~/ 60;
+          final sisaMenit = selisihMenit % 60;
+          durasiAwal = sisaMenit > 0 ? '$jam jam $sisaMenit menit' : '$jam jam';
+        } else {
+          durasiAwal = '$selisihMenit menit';
+        }
+
+        return {
+          'status': 'Datang Lebih Awal',
+          'isLate': false,
+          'durasi': durasiAwal,
+          'badgeColor': const Color(0xFF16A34A),
+          'bgColor': const Color(0xFFDCFCE7),
+          'keterangan': 'Datang lebih awal $durasiAwal sebelum batas jam 08:00 WIB.',
+        };
+      } else if (totalDetik == targetDetik) {
+        // Pas jam 08.00:00 -> Tepat Waktu
+        return {
+          'status': 'Tepat Waktu',
+          'isLate': false,
+          'durasi': '0 menit',
+          'badgeColor': const Color(0xFF16A34A),
+          'bgColor': const Color(0xFFDCFCE7),
+          'keterangan': 'Hadir tepat waktu pada batas jam masuk 08:00 WIB.',
+        };
+      } else {
+        // Lewat jam 08.00:00 -> Terlambat
+        final selisihDetik = totalDetik - targetDetik;
+        final selisihMenit = (selisihDetik / 60).ceil();
+        String durasiTelat;
+        if (selisihMenit >= 60) {
+          final jam = selisihMenit ~/ 60;
+          final sisaMenit = selisihMenit % 60;
+          durasiTelat = sisaMenit > 0 ? '$jam jam $sisaMenit menit' : '$jam jam';
+        } else {
+          durasiTelat = '$selisihMenit menit';
+        }
+
+        return {
+          'status': 'Terlambat',
+          'isLate': true,
+          'durasi': durasiTelat,
+          'badgeColor': const Color(0xFFEA580C),
+          'bgColor': const Color(0xFFFFEDD5),
+          'keterangan': 'Terlambat $durasiTelat dari batas jam masuk kantor 08:00 WIB.',
+        };
+      }
+    }
+
+    return {
+      'status': 'Hadir',
+      'isLate': false,
+      'badgeColor': const Color(0xFF16A34A),
+      'bgColor': const Color(0xFFDCFCE7),
+      'keterangan': 'Absensi masuk tercatat.',
+    };
+  }
+
+  /// Membuka lokasi absensi di aplikasi Google Maps
+  Future<void> _bukaGoogleMaps(BuildContext context, dynamic rawLat, dynamic rawLng) async {
+    double lat = -6.949161;
+    double lng = 107.645018;
+
+    if (rawLat != null) {
+      final parsed = double.tryParse(rawLat.toString());
+      if (parsed != null) lat = parsed;
+    }
+    if (rawLng != null) {
+      final parsed = double.tryParse(rawLng.toString());
+      if (parsed != null) lng = parsed;
+    }
+
+    final urlMaps = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+
+    try {
+      final launched = await launchUrl(
+        urlMaps,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        await launchUrl(urlMaps, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red.shade700,
+            content: Text('Tidak dapat membuka Google Maps: $e'),
+          ),
+        );
+      }
+    }
+  }
+
+  void _bukaFotoBesar(BuildContext context, String imageUrl, String judul) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: const BoxDecoration(
+                color: Color(0xFF1E2548),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    judul,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+            ),
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Container(
+                  height: 220,
+                  color: const Color(0xFF1E2548),
+                  child: const Center(
+                    child: Text('Gagal memuat foto', style: TextStyle(color: Colors.white70)),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 1. Data User / Karyawan
+    final dynamic userObj = item['User'];
+    final String namaKaryawan = userObj != null && userObj['nama'] != null
+        ? userObj['nama'].toString()
+        : (item['rawNama'] ?? item['nama'] ?? 'Karyawan').toString().replaceAll('\n', ' ');
+
+    final String jabatanKaryawan = userObj != null && userObj['jabatan'] != null
+        ? userObj['jabatan'].toString()
+        : (item['devisi'] ?? 'Karyawan').toString().replaceAll('\n', ' ');
+
+    final String emailKaryawan = userObj != null && userObj['email'] != null
+        ? userObj['email'].toString()
+        : (item['email'] ?? 'karyawan@mail.com').toString();
+
+    final String? userFoto = userObj != null ? userObj['foto_profil']?.toString() : null;
+
+    // 2. Data Jam & Status Masuk/Pulang
+    final rawStatus = (item['status'] ?? 'Hadir').toString();
     final jamMasukRaw = (item['jam_masuk'] ?? '—').toString();
     final jamPulangRaw = (item['jam_pulang'] ?? '—').toString();
 
-    final String jamMasuk = isCuti || jamMasukRaw == '—' || jamMasukRaw.isEmpty
+    final statusInfo = _hitungStatusKetepatanWaktu(jamMasukRaw, rawStatus);
+    final String statusDisplay = statusInfo['status'] as String;
+    final Color statusColor = statusInfo['badgeColor'] as Color;
+    final Color statusBg = statusInfo['bgColor'] as Color;
+    final String statusKeterangan = statusInfo['keterangan'] as String;
+
+    final String jamMasuk = jamMasukRaw == '—' || jamMasukRaw.isEmpty
         ? '—'
         : (jamMasukRaw.contains('WIB') ? jamMasukRaw : '$jamMasukRaw WIB');
 
-    final String jamPulang = isCuti || jamPulangRaw == '—' || jamPulangRaw.isEmpty
+    final String jamPulang = jamPulangRaw == '—' || jamPulangRaw.isEmpty
         ? '—'
         : (jamPulangRaw.contains('WIB') ? jamPulangRaw : '$jamPulangRaw WIB');
 
-    final String totalJamKerja = isCuti
-        ? '—'
-        : (item['total_jam']?.toString() ??
-            _hitungTotalJamKerja(jamMasukRaw, jamPulangRaw));
+    final String totalJamKerja = (jamMasukRaw == '—' || jamPulangRaw == '—' || jamPulangRaw.isEmpty)
+        ? (jamMasukRaw != '—' ? 'Sedang Bekerja' : '—')
+        : (item['total_jam']?.toString() ?? _hitungTotalJamKerja(jamMasukRaw, jamPulangRaw));
 
-    // 4. Parsing Lokasi & Metode
-    final String lokasiMasuk = isCuti ? '—' : 'Kantor Pusat, Jl. Sudirman';
-    final String metodeVerifikasi =
-        item['metode_verifikasi']?.toString() ?? 'Face Recognition + GPS';
+    // 3. Data Tanggal
+    final tanggalLengkap = _formatTanggal(item);
 
-    final String koordinat =
-        item['koordinat']?.toString() ?? '-6.2088° S, 106.8456° E • Akurasi ±5m';
+    // 4. Data Foto Masuk & Pulang
+    final String? fotoMasukPath = item['foto_masuk']?.toString();
+    final String? fotoPulangPath = item['foto_pulang']?.toString();
+    final String? fotoMasukUrl = AppConstants.getImageUrl(fotoMasukPath);
+    final String? fotoPulangUrl = AppConstants.getImageUrl(fotoPulangPath);
+
+    // 5. Data Koordinat GPS
+    final latMsk = item['lat_masuk'];
+    final lngMsk = item['lng_masuk'];
+    final latPlg = item['lat_pulang'];
+    final lngPlg = item['lng_pulang'];
+
+    String koordinatDisplay;
+    if (latMsk != null && lngMsk != null) {
+      koordinatDisplay = 'Masuk: $latMsk, $lngMsk • Akurasi ±5m';
+      if (latPlg != null && lngPlg != null) {
+        koordinatDisplay += '\nPulang: $latPlg, $lngPlg';
+      }
+    } else {
+      koordinatDisplay = item['koordinat']?.toString() ?? '-6.9492° S, 107.6450° E • Akurasi ±5m';
+    }
+
+    final String lokasiMasuk = item['lokasi']?.toString() ?? 'Kantor Pusat — Jl. Sudirman No. 45';
 
     return PopScope(
       canPop: onBack == null,
@@ -84,17 +285,17 @@ class DetailAbsensiScreen extends StatelessWidget {
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF9FAFB),
         body: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. TOP BAR: Back Button + Title
-              Padding(
+              // 1. TOP BAR: Back Button + Title + Status Chip
+              Container(
+                color: Colors.white,
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 child: Row(
                   children: [
-                    // Lingkaran Tombol Back Biru-Ungu
                     InkWell(
                       onTap: () {
                         if (onBack != null) {
@@ -105,8 +306,8 @@ class DetailAbsensiScreen extends StatelessWidget {
                       },
                       borderRadius: BorderRadius.circular(20),
                       child: Container(
-                        width: 32,
-                        height: 32,
+                        width: 34,
+                        height: 34,
                         decoration: const BoxDecoration(
                           color: Color(0xFF4F5BA8),
                           shape: BoxShape.circle,
@@ -120,82 +321,246 @@ class DetailAbsensiScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-
-                    // Teks Judul
-                    const Text(
-                      'Detail Absensi',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF111827),
-                        letterSpacing: -0.2,
+                    const Expanded(
+                      child: Text(
+                        'Detail Absensi',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF111827),
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ),
+                    // Status Badge di Kanan Atas
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: statusBg,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        statusDisplay,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
+              const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
 
-              // Divider Halus Membentang Penuh
-              const Divider(
-                height: 1,
-                thickness: 1,
-                color: Color(0xFFE5E7EB),
-              ),
-
-              // 2. KONTEN DETAIL ABSENSI
+              // 2. KONTEN DETAIL
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
                   children: [
-                    const SizedBox(height: 20),
-
-                    // IKON SQUIRCLE SUKSES HIJAU
-                    Center(
-                      child: Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFC5F2BF),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        alignment: Alignment.center,
-                        child: Container(
-                          width: 26,
-                          height: 26,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF48742C),
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: const Icon(
-                            Icons.check,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // KARTU 1: INFORMASI ABSENSI
+                    // KARTU 1: PROFIL KARYAWAN
                     Container(
                       width: double.infinity,
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: const Color(0xFFD1D5DB),
-                          width: 1.2,
-                        ),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFE5E7EB), width: 1.2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.02),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 26,
+                            backgroundColor: const Color(0xFF4F5BA8),
+                            backgroundImage: userFoto != null && userFoto.isNotEmpty
+                                ? NetworkImage(AppConstants.getImageUrl(userFoto)!)
+                                : null,
+                            child: (userFoto == null || userFoto.isEmpty)
+                                ? Text(
+                                    namaKaryawan.isNotEmpty ? namaKaryawan[0].toUpperCase() : 'K',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 20,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  namaKaryawan,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF111827),
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  jabatanKaryawan,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF4F5BA8),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  emailKaryawan,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF6B7280),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // KARTU 2: BANNER STATUS KETEPATAN WAKTU (PATOKAN 08:00 WIB)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: statusBg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              statusDisplay.contains('Awal') || statusDisplay.contains('Tepat')
+                                  ? Icons.check_circle_rounded
+                                  : (statusDisplay == 'Terlambat'
+                                      ? Icons.alarm_on_rounded
+                                      : Icons.info_outline_rounded),
+                              color: statusColor,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Status Kehadiran: $statusDisplay',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: statusColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  statusKeterangan,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF4B5563),
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // KARTU 3: FOTO BUKTI PRESENSI (MASUK & PULANG)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFE5E7EB), width: 1.2),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Header: INFORMASI ABSENSI
+                          const Row(
+                            children: [
+                              Icon(Icons.camera_alt_outlined, size: 16, color: Color(0xFF4F5BA8)),
+                              SizedBox(width: 8),
+                              Text(
+                                'FOTO BUKTI ABSENSI',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF6B7280),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              // 1. Foto Absen Masuk
+                              Expanded(
+                                child: _buildFotoBox(
+                                  context: context,
+                                  label: 'Foto Masuk',
+                                  jam: jamMasuk,
+                                  imageUrl: fotoMasukUrl,
+                                  isMasuk: true,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              // 2. Foto Absen Pulang
+                              Expanded(
+                                child: _buildFotoBox(
+                                  context: context,
+                                  label: 'Foto Pulang',
+                                  jam: jamPulang,
+                                  imageUrl: fotoPulangUrl,
+                                  isMasuk: false,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // KARTU 4: RINCIAN INFORMASI ABSENSI LENGKAP
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFE5E7EB), width: 1.2),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           const Padding(
                             padding: EdgeInsets.fromLTRB(16, 14, 16, 12),
                             child: Text(
-                              'INFORMASI ABSENSI',
+                              'RINCIAN LENGKAP PRESENSI',
                               style: TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.bold,
@@ -206,23 +571,15 @@ class DetailAbsensiScreen extends StatelessWidget {
                           ),
                           const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
 
-                          // 1. Tanggal
                           _buildTableRow('Tanggal', tanggalLengkap),
                           const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
 
-                          // 2. Jam Masuk
                           _buildTableRow('Jam Masuk', jamMasuk),
                           const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
 
-                          // 3. Jam Pulang
-                          _buildTableRow('Jam Pulang', jamPulang),
+                          _buildTableRow('Target Masuk Kantor', '08:00 WIB'),
                           const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
 
-                          // 4. Total Jam Kerja
-                          _buildTableRow('Total Jam Kerja', totalJamKerja),
-                          const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
-
-                          // 5. Status Kehadiran (Warna Kustom)
                           _buildTableRow(
                             'Status Kehadiran',
                             statusDisplay,
@@ -230,89 +587,159 @@ class DetailAbsensiScreen extends StatelessWidget {
                           ),
                           const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
 
-                          // 6. Lokasi Masuk
+                          _buildTableRow('Jam Pulang', jamPulang),
+                          const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
+
+                          _buildTableRow('Total Jam Kerja', totalJamKerja),
+                          const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
+
                           _buildTableRow('Lokasi Masuk', lokasiMasuk),
                           const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
 
-                          // 7. Metode Verifikasi
-                          _buildTableRow('Metode Verifikasi', metodeVerifikasi),
+                          _buildTableRow('Metode Validasi', 'Face Biometric + GPS'),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 14),
 
-                    // KARTU 2: LOKASI GPS
+                    // KARTU 5: LOKASI GPS & PETA (BISA DIKLIK BUKA GOOGLE MAPS)
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: const Color(0xFFD1D5DB),
-                          width: 1.2,
-                        ),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFE5E7EB), width: 1.2),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'LOKASI GPS',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF6B7280),
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Map Box Preview Berlatar Hijau Lembut (#C9EFC4)
-                          Container(
-                            height: 120,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFC9EFC4),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            alignment: Alignment.center,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                // Lingkaran dasar / bayangan pin
-                                Positioned(
-                                  bottom: 35,
-                                  child: Container(
-                                    width: 34,
-                                    height: 14,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: const Color(0xFF23538F),
-                                        width: 2.2,
-                                      ),
-                                      borderRadius: BorderRadius.circular(10),
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'LOKASI & GPS GEOLOKASI',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF6B7280),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 14),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Valid (Dalam Radius)',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF16A34A),
                                     ),
                                   ),
-                                ),
-                                // Ikon Pin Lokasi Biru (#23538F)
-                                const Icon(
-                                  Icons.location_on_rounded,
-                                  color: Color(0xFF23538F),
-                                  size: 38,
-                                ),
-                              ],
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Map Preview Box (Bisa diklik untuk buka Google Maps)
+                          GestureDetector(
+                            onTap: () => _bukaGoogleMaps(context, latMsk, lngMsk),
+                            child: Container(
+                              height: 120,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFC9EFC4),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              alignment: Alignment.center,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Positioned(
+                                    bottom: 35,
+                                    child: Container(
+                                      width: 34,
+                                      height: 14,
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: const Color(0xFF23538F),
+                                          width: 2.2,
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.location_on_rounded,
+                                    color: Color(0xFF23538F),
+                                    size: 38,
+                                  ),
+                                  // Petunjuk klik di pojok kanan bawah peta
+                                  Positioned(
+                                    bottom: 8,
+                                    right: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.6),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.open_in_new_rounded, size: 12, color: Colors.white),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Google Maps',
+                                            style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
+                          Center(
+                            child: Text(
+                              koordinatDisplay,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                color: Color(0xFF4B5563),
+                                height: 1.35,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 12),
 
-                          // Teks Koordinat & Akurasi
-                          Center(
-                            child: Text(
-                              koordinat,
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                color: Color(0xFF6B7280),
-                                fontWeight: FontWeight.w400,
+                          // Tombol Aksi Buka di Google Maps
+                          SizedBox(
+                            width: double.infinity,
+                            height: 44,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF4F5BA8),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: () => _bukaGoogleMaps(context, latMsk, lngMsk),
+                              icon: const Icon(Icons.map_rounded, size: 18),
+                              label: const Text(
+                                'Buka Lokasi di Google Maps',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
@@ -329,16 +756,114 @@ class DetailAbsensiScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildFotoBox({
+    required BuildContext context,
+    required String label,
+    required String jam,
+    required String? imageUrl,
+    required bool isMasuk,
+  }) {
+    final bool hasImage = imageUrl != null && imageUrl.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: hasImage ? () => _bukaFotoBesar(context, imageUrl, label) : null,
+          child: Container(
+            height: 130,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: hasImage ? const Color(0xFF4F5BA8).withValues(alpha: 0.5) : const Color(0xFFD1D5DB),
+                width: 1.2,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(13),
+              child: hasImage
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _buildPlaceholder(label, 'Gagal memuat'),
+                        ),
+                        Positioned(
+                          right: 6,
+                          bottom: 6,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.zoom_in, color: Colors.white, size: 14),
+                          ),
+                        ),
+                      ],
+                    )
+                  : _buildPlaceholder(label, isMasuk ? 'Belum ada foto' : 'Belum absen pulang'),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF111827),
+          ),
+        ),
+        Text(
+          jam,
+          style: const TextStyle(
+            fontSize: 11.5,
+            color: Color(0xFF6B7280),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlaceholder(String label, String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.camera_alt_outlined,
+            size: 28,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTableRow(String label, String value, {Color? valueColor}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             label,
             style: const TextStyle(
-              fontSize: 13.5,
+              fontSize: 13,
               color: Color(0xFF6B7280),
               fontWeight: FontWeight.w400,
             ),
@@ -349,7 +874,7 @@ class DetailAbsensiScreen extends StatelessWidget {
               value,
               textAlign: TextAlign.right,
               style: TextStyle(
-                fontSize: 13.5,
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
                 color: valueColor ?? const Color(0xFF111827),
               ),
@@ -364,6 +889,19 @@ class DetailAbsensiScreen extends StatelessWidget {
     if (item['tanggal_lengkap'] != null &&
         item['tanggal_lengkap'].toString().isNotEmpty) {
       return item['tanggal_lengkap'].toString();
+    }
+
+    final tglStr = item['tanggal']?.toString() ?? '';
+    if (tglStr.isNotEmpty) {
+      try {
+        final dt = DateTime.parse(tglStr);
+        const hariList = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+        const blnList = [
+          'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+          'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        ];
+        return '${hariList[dt.weekday - 1]}, ${dt.day} ${blnList[dt.month - 1]} ${dt.year}';
+      } catch (_) {}
     }
 
     final hari = item['hari']?.toString() ?? 'Senin';

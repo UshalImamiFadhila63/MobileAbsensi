@@ -107,14 +107,26 @@ class _KonfirmasiAbsenScreenState extends State<KonfirmasiAbsenScreen> {
         }
 
         if (!mounted) return;
-        setState(() => _submitting = false);
+        String statusKirim;
+        if (widget.isMasuk) {
+          final now = DateTime.now();
+          if (now.hour > 8 || (now.hour == 8 && now.minute > 0)) {
+            statusKirim = 'Terlambat';
+          } else if (now.hour < 8) {
+            statusKirim = 'Datang Lebih Awal';
+          } else {
+            statusKirim = 'Tepat Waktu';
+          }
+        } else {
+          statusKirim = 'Sudah Pulang';
+        }
 
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => AbsenSuksesScreen(
               isMasuk: widget.isMasuk,
-              status: widget.isMasuk ? 'Sudah Masuk' : 'Sudah Pulang',
-              lokasi: 'Kantor Pusat',
+              status: statusKirim,
+              lokasi: widget.lokasiText ?? 'Kantor Pusat',
             ),
           ),
         );
@@ -131,12 +143,26 @@ class _KonfirmasiAbsenScreenState extends State<KonfirmasiAbsenScreen> {
       }
     } else {
       // Mode Standalone / Preview
+      String statusKirim;
+      if (widget.isMasuk) {
+        final now = DateTime.now();
+        if (now.hour > 8 || (now.hour == 8 && now.minute > 0)) {
+          statusKirim = 'Terlambat';
+        } else if (now.hour < 8) {
+          statusKirim = 'Datang Lebih Awal';
+        } else {
+          statusKirim = 'Tepat Waktu';
+        }
+      } else {
+        statusKirim = 'Sudah Pulang';
+      }
+
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => AbsenSuksesScreen(
             isMasuk: widget.isMasuk,
-            status: widget.isMasuk ? 'Sudah Masuk' : 'Sudah Pulang',
-            lokasi: 'Kantor Pusat',
+            status: statusKirim,
+            lokasi: widget.lokasiText ?? 'Kantor Pusat',
           ),
         ),
       );

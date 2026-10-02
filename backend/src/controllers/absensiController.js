@@ -35,11 +35,17 @@ exports.absenMasuk = async (req, res) => {
       return res.status(400).json({ message: 'Anda sudah absen masuk hari ini' });
     }
 
+    const jam = jamSekarang();
+    // Patokan jam masuk 08:00 WIB: jika lewat 08:00:00 dianggap telat
+    const isTelat = jam > '08:00:00';
+    const status = isTelat ? 'telat' : 'hadir';
+
     const data = sudah || await Absensi.create({ user_id: req.user.id, tanggal });
-    data.jam_masuk = jamSekarang();
+    data.jam_masuk = jam;
     data.foto_masuk = `/uploads/absensi/${req.file.filename}`;
     data.lat_masuk = lat;
     data.lng_masuk = lng;
+    data.status = status;
     await data.save();
 
     res.json({ message: 'Absen masuk berhasil', data });
@@ -116,7 +122,11 @@ exports.riwayatSaya = async (req, res) => {
       where.tanggal = { [Op.between]: [start, end] };
     }
 
-    const data = await Absensi.findAll({ where, order: [['tanggal', 'DESC']] });
+    const data = await Absensi.findAll({
+      where,
+      include: [{ model: User, attributes: ['id', 'nama', 'email', 'jabatan', 'foto_profil'] }],
+      order: [['tanggal', 'DESC']],
+    });
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: 'Terjadi kesalahan server', error: err.message });
@@ -140,7 +150,7 @@ exports.rekapAdmin = async (req, res) => {
 
     const data = await Absensi.findAll({
       where,
-      include: [{ model: User, attributes: ['id', 'nama', 'email', 'jabatan'] }],
+      include: [{ model: User, attributes: ['id', 'nama', 'email', 'jabatan', 'foto_profil'] }],
       order: [['tanggal', 'DESC']],
     });
     res.json(data);

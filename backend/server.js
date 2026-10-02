@@ -10,12 +10,14 @@ require('./src/models/User');
 require('./src/models/Absensi');
 require('./src/models/Cuti');
 require('./src/models/Laporan');
+require('./src/models/Notifikasi');
 
 const authRoutes = require('./src/routes/authRoutes');
 const absensiRoutes = require('./src/routes/absensiRoutes');
 const cutiRoutes = require('./src/routes/cutiRoutes');
 const laporanRoutes = require('./src/routes/laporanRoutes');
 const karyawanRoutes = require('./src/routes/karyawanRoutes');
+const notifikasiRoutes = require('./src/routes/notifikasiRoutes');
 
 const app = express();
 
@@ -31,6 +33,7 @@ app.use('/api/absensi', absensiRoutes);
 app.use('/api/cuti', cutiRoutes);
 app.use('/api/laporan', laporanRoutes);
 app.use('/api/karyawan', karyawanRoutes);
+app.use('/api/notifikasi', notifikasiRoutes);
 
 app.get('/', (req, res) => res.json({ message: 'Absensi API aktif' }));
 
@@ -102,11 +105,52 @@ async function seedDefaultUsers() {
   }
 }
 
+async function syncExistingCutiNotifications() {
+  try {
+    const Cuti = require('./src/models/Cuti');
+    const Notifikasi = require('./src/models/Notifikasi');
+    const listCuti = await Cuti.findAll({ order: [['id', 'ASC']] });
+    for (const c of listCuti) {
+      if (c.status === 'diterima' || c.status === 'ditolak') {
+        const isAcc = c.status === 'diterima';
+        const judul = isAcc ? 'Pengajuan Cuti Disetujui' : 'Pengajuan Cuti Ditolak';
+        const pesan = isAcc
+          ? `Pengajuan cuti ${c.jenis_cuti} (${c.tanggal_mulai} s/d ${c.tanggal_selesai}) telah disetujui admin.`
+          : `Pengajuan cuti ${c.jenis_cuti} (${c.tanggal_mulai} s/d ${c.tanggal_selesai}) ditolak. Alasan: ${c.catatan_admin || 'Tidak ada catatan.'}`;
+
+        const existing = await Notifikasi.findOne({
+          where: {
+            user_id: c.user_id,
+            tipe: 'cuti',
+            judul,
+            pesan,
+          },
+        });
+
+        if (!existing) {
+          await Notifikasi.create({
+            user_id: c.user_id,
+            tipe: 'cuti',
+            judul,
+            pesan,
+            cta_text: 'Lihat Status & Riwayat Cuti →',
+            data: JSON.stringify({ cuti_id: c.id, tabIndex: 1 }),
+            is_read: false,
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Gagal sync notifikasi cuti:', err.message);
+  }
+}
+
 sequelize
   .sync() // ganti { alter: true } saat development kalau skema berubah
   .then(async () => {
     console.log('Database terhubung & model tersinkronisasi');
     await seedDefaultUsers();
+    await syncExistingCutiNotifications();
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server jalan di port ${PORT} (http://0.0.0.0:${PORT})`);
       tryAdbReverse(PORT);

@@ -1,5 +1,6 @@
 const Cuti = require('../models/Cuti');
 const User = require('../models/User');
+const notifikasiController = require('./notifikasiController');
 
 // ISI FORMULIR CUTI -> AJUKAN CUTI
 exports.ajukanCuti = async (req, res) => {
@@ -19,6 +20,32 @@ exports.ajukanCuti = async (req, res) => {
       lampiran: req.file ? `/uploads/cuti/${req.file.filename}` : null,
       status: 'menunggu',
     });
+
+    // Buat notifikasi untuk karyawan sendiri
+    await notifikasiController.buatNotifikasi({
+      user_id: req.user.id,
+      tipe: 'cuti',
+      judul: 'Pengajuan Cuti Terkirim',
+      pesan: `Pengajuan ${jenis_cuti} (${tanggal_mulai} s/d ${tanggal_selesai}) berhasil dikirim dan menunggu persetujuan admin.`,
+      cta_text: 'Lihat Status Cuti →',
+      data: { cuti_id: cuti.id, tabIndex: 1 },
+    });
+
+    // Buat notifikasi untuk semua admin
+    try {
+      const admins = await User.findAll({ where: { role: 'admin' } });
+      const pemohon = await User.findByPk(req.user.id);
+      for (const admin of admins) {
+        await notifikasiController.buatNotifikasi({
+          user_id: admin.id,
+          tipe: 'cuti',
+          judul: 'Pengajuan Cuti Baru',
+          pesan: `${pemohon ? pemohon.nama : 'Karyawan'} mengajukan cuti ${jenis_cuti} (${tanggal_mulai} s/d ${tanggal_selesai}).`,
+          cta_text: 'Tinjau Pengajuan Cuti →',
+          data: { cuti_id: cuti.id },
+        });
+      }
+    } catch (_) {}
 
     res.status(201).json({ message: 'Pengajuan cuti berhasil dikirim, menunggu persetujuan admin', data: cuti });
   } catch (err) {
@@ -83,6 +110,19 @@ exports.prosesPengajuan = async (req, res) => {
     cuti.catatan_admin = catatan_admin || null;
     cuti.diproses_oleh = req.user.id;
     await cuti.save();
+
+    // Kirim notifikasi hasil verifikasi ke karyawan pemohon
+    const isAcc = status === 'diterima';
+    await notifikasiController.buatNotifikasi({
+      user_id: cuti.user_id,
+      tipe: 'cuti',
+      judul: isAcc ? 'Pengajuan Cuti Disetujui' : 'Pengajuan Cuti Ditolak',
+      pesan: isAcc
+        ? `Pengajuan cuti ${cuti.jenis_cuti} (${cuti.tanggal_mulai} s/d ${cuti.tanggal_selesai}) telah disetujui admin.`
+        : `Pengajuan cuti ${cuti.jenis_cuti} (${cuti.tanggal_mulai} s/d ${cuti.tanggal_selesai}) ditolak. Alasan: ${catatan_admin || 'Tidak ada catatan.'}`,
+      cta_text: 'Lihat Status & Riwayat Cuti →',
+      data: { cuti_id: cuti.id, tabIndex: 1 },
+    });
 
     res.json({ message: `Pengajuan cuti telah ${status}`, data: cuti });
   } catch (err) {

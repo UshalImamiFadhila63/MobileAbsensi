@@ -7,6 +7,7 @@ import 'edit_profile_screen.dart';
 import 'ubah_password_screen.dart';
 import 'kebijakan_privasi_screen.dart';
 import 'components/notifikasi_karyawan_popup.dart';
+import '../../core/notifikasi_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -316,6 +317,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 iconColor: const Color(0xFFD97706),
                                 title: 'Notifikasi',
                                 onTap: _dialogNotifikasi,
+                                trailing: ValueListenableBuilder<int>(
+                                  valueListenable: NotifikasiService.unreadCountNotifier,
+                                  builder: (context, unreadCount, _) {
+                                    if (unreadCount <= 0) return const SizedBox.shrink();
+                                    return Container(
+                                      margin: const EdgeInsets.only(right: 8),
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEF4444),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '$unreadCount baru',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
                               const Divider(height: 1, indent: 64, endIndent: 16, color: Color(0xFFF3F4F6)),
                               _buildMenuItem(
@@ -451,6 +474,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required Color iconColor,
     required String title,
     required VoidCallback onTap,
+    Widget? trailing,
   }) {
     return Material(
       color: Colors.transparent,
@@ -480,6 +504,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
+              if (trailing != null) trailing,
               const Icon(
                 Icons.chevron_right,
                 color: Color(0xFF9CA3AF),
