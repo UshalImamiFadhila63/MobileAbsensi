@@ -213,7 +213,9 @@ class NotifikasiKaryawanPopup extends StatelessWidget {
 
   void _handleNavigasiCuti(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const PengajuanCutiScreen()),
+      MaterialPageRoute(
+        builder: (_) => const PengajuanCutiScreen(initialTabIndex: 1),
+      ),
     );
   }
 

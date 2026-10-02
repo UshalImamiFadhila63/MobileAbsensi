@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/constants.dart';
+import '../core/session.dart';
 import 'login_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -45,7 +46,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
   ];
 
-  void _selesai() {
+  Future<void> _selesai() async {
+    await Session.tandaiOnboardingSelesai();
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
     );

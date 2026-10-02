@@ -90,15 +90,10 @@ async function seedDefaultUsers() {
 
     if (karyawanCreated) {
       console.log('✓ Akun Karyawan Demo (karyawan@mail.com) berhasil dibuat otomatis.');
-    } else {
-      // Pastikan password & status aktif jika user sudah ada sebelumnya
-      const match = await bcrypt.compare('karyawan123', karyawanUser.password);
-      if (!match || !karyawanUser.is_active) {
-        karyawanUser.password = karyawanPass;
-        karyawanUser.is_active = true;
-        await karyawanUser.save();
-        console.log('✓ Password & status akun Karyawan Demo disinkronkan kembali.');
-      }
+    } else if (!karyawanUser.is_active) {
+      karyawanUser.is_active = true;
+      await karyawanUser.save();
+      console.log('✓ Status aktif akun Karyawan Demo disinkronkan kembali.');
     }
 
     console.log('✓ Akun default demo (admin & karyawan) siap digunakan.');

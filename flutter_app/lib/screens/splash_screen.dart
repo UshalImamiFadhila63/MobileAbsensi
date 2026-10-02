@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../core/session.dart';
 import 'onboarding_screen.dart';
+import 'login_screen.dart';
+import 'admin/dashboard_admin.dart';
+import 'karyawan/dashboard_karyawan.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -46,20 +50,43 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  // Buka aplikasi -> Splash (2.2 detik) -> Muncul OnboardingScreen
+  // Buka aplikasi -> Splash -> Cek Session Login / Onboarding
   Future<void> _cekAlur() async {
-    await Future.delayed(const Duration(milliseconds: 2200));
+    await Future.delayed(const Duration(milliseconds: 2000));
     if (!mounted) return;
 
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const OnboardingScreen(),
-        transitionsBuilder: (_, animation, __, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 400),
-      ),
-    );
+    final isLoggedIn = await Session.sudahLogin();
+    if (isLoggedIn) {
+      final role = await Session.getRole();
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => role == 'admin'
+              ? const DashboardAdmin()
+              : const DashboardKaryawan(),
+        ),
+      );
+      return;
+    }
+
+    final seenOnboarding = await Session.sudahLihatOnboarding();
+    if (!mounted) return;
+
+    if (seenOnboarding) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    } else {
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => const OnboardingScreen(),
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 400),
+        ),
+      );
+    }
   }
 
   @override

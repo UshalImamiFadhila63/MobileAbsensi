@@ -26,7 +26,7 @@ class MonitoringAbsensiScreen extends StatefulWidget {
 }
 
 class _MonitoringAbsensiScreenState extends State<MonitoringAbsensiScreen> {
-  DateTime _selectedDate = DateTime(2026, 9, 29);
+  DateTime _selectedDate = DateTime.now();
   String _activeFilter = 'semua'; // 'semua', 'hadir', 'terlambat', 'belum'
   late Future<List<dynamic>> _future;
 

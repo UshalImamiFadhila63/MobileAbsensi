@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/api_service.dart';
 import '../components/konfirmasi_pengajuan_popup.dart';
+import 'dashboard_karyawan.dart';
+
 
 /// Halaman Pengajuan Cuti Karyawan
 /// Dibuat persis 100% sesuai screenshot desain Figma yang dikirimkan user:
@@ -176,7 +178,23 @@ class _PengajuanCutiScreenState extends State<PengajuanCutiScreen> {
   Widget _buildBottomNavItem(int index, IconData icon, String label) {
     final isHome = index == 0;
     return InkWell(
-      onTap: () => Navigator.of(context).pop(),
+      onTap: () {
+        if (index == 0) {
+          if (Navigator.canPop(context)) {
+            Navigator.of(context).pop();
+          } else {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const DashboardKaryawan(initialIndex: 0)),
+              (route) => false,
+            );
+          }
+        } else {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => DashboardKaryawan(initialIndex: index)),
+            (route) => false,
+          );
+        }
+      },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,

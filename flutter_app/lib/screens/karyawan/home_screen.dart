@@ -18,6 +18,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   String _nama = 'Ahmad Fauzi';
+  String? _fotoProfil;
   String? _jamMasuk;
   String? _jamPulang;
 
@@ -40,6 +41,13 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted && nama != null && nama.isNotEmpty) {
         _nama = nama;
       }
+
+      try {
+        final prof = await ApiService.getProfile();
+        if (mounted && prof['foto_profil'] != null) {
+          _fotoProfil = prof['foto_profil'];
+        }
+      } catch (_) {}
 
       if (status['data'] != null) {
         final data = status['data'];
@@ -159,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   children: [
                                     Row(
                                       children: [
-                                        // Avatar Lingkaran Inisial
+                                        // Avatar Lingkaran Inisial / Foto
                                         Container(
                                           width: 44,
                                           height: 44,
@@ -171,14 +179,34 @@ class _HomeScreenState extends State<HomeScreen> {
                                               width: 1.5,
                                             ),
                                           ),
-                                          alignment: Alignment.center,
-                                          child: Text(
-                                            _getInitials(_nama),
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
+                                          child: ClipOval(
+                                            child: AppConstants.getImageUrl(_fotoProfil) != null
+                                                ? Image.network(
+                                                    AppConstants.getImageUrl(_fotoProfil)!,
+                                                    width: 44,
+                                                    height: 44,
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder: (_, __, ___) => Center(
+                                                      child: Text(
+                                                        _getInitials(_nama),
+                                                        style: const TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  )
+                                                : Center(
+                                                    child: Text(
+                                                      _getInitials(_nama),
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                  ),
                                           ),
                                         ),
                                         const SizedBox(width: 12),

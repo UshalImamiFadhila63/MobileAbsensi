@@ -60,11 +60,13 @@ class _LoginScreenState extends State<LoginScreen> {
               ? user['jabatan'].toString()
               : 'Teknisi Drone');
 
+      bool navigated = false;
       await SelamatDatangPopup.show(
         context,
         nama: nama,
         roleTitle: roleTitle,
         onLanjutkan: () {
+          navigated = true;
           Navigator.of(context).pop();
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
@@ -76,6 +78,17 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         },
       );
+
+      if (!navigated && mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => isAdmin
+                ? const DashboardAdmin()
+                : const DashboardKaryawan(),
+          ),
+          (route) => false,
+        );
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _errorTeks = e.message);
     } catch (e) {

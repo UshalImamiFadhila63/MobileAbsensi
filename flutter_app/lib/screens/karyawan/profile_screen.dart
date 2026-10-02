@@ -94,6 +94,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final divisi = _user?['divisi'] ?? 'Drone Agriculture';
     final status = _user?['is_active'] == false ? 'Nonaktif' : 'Aktif';
 
+    final fotoUrl = AppConstants.getImageUrl(_user?['foto_profil']);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: SafeArea(
@@ -127,46 +129,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Column(
                           children: [
                             // Avatar Squircle dengan Badge Centang Hijau
-                            Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Container(
-                                  width: 72,
-                                  height: 72,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFCBD5E1),
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    _getInitials(nama),
-                                    style: const TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: -2,
-                                  right: -2,
-                                  child: Container(
-                                    width: 22,
-                                    height: 22,
+                            GestureDetector(
+                              onTap: () async {
+                                final sukses = await Navigator.of(context).push<bool>(
+                                  MaterialPageRoute(builder: (_) => EditProfileScreen(user: _user ?? {})),
+                                );
+                                if (sukses == true) _muat();
+                              },
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Container(
+                                    width: 76,
+                                    height: 76,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF22C55E),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: primaryColor, width: 2),
+                                      color: const Color(0xFFCBD5E1),
+                                      borderRadius: BorderRadius.circular(20),
                                     ),
-                                    child: const Icon(
-                                      Icons.check,
-                                      color: Colors.white,
-                                      size: 13,
-                                      weight: 900,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: fotoUrl != null
+                                          ? Image.network(
+                                              fotoUrl,
+                                              width: 76,
+                                              height: 76,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => Container(
+                                                color: const Color(0xFFCBD5E1),
+                                                alignment: Alignment.center,
+                                                child: Text(
+                                                  _getInitials(nama),
+                                                  style: const TextStyle(
+                                                    fontSize: 26,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                          : Container(
+                                              color: const Color(0xFFCBD5E1),
+                                              alignment: Alignment.center,
+                                              child: Text(
+                                                _getInitials(nama),
+                                                style: const TextStyle(
+                                                  fontSize: 26,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                  Positioned(
+                                    bottom: -2,
+                                    right: -2,
+                                    child: Container(
+                                      width: 24,
+                                      height: 24,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF22C55E),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: primaryColor, width: 2),
+                                      ),
+                                      child: const Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 14,
+                                        weight: 900,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                             const SizedBox(height: 12),
 
