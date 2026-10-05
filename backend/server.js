@@ -40,7 +40,32 @@ app.get('/', (req, res) => res.json({ message: 'Absensi API aktif' }));
 const PORT = process.env.PORT || 3000;
 const { exec } = require('child_process');
 const bcrypt = require('bcryptjs');
+const mysql = require('mysql2/promise');
 const User = require('./src/models/User');
+
+async function ensureDatabaseExists() {
+  const host = process.env.DB_HOST || 'localhost';
+  const port = Number(process.env.DB_PORT) || 3306;
+  const user = process.env.DB_USER || 'root';
+  const password = process.env.DB_PASS || '';
+  const dbName = process.env.DB_NAME || 'absensi_db';
+
+  try {
+    const connection = await mysql.createConnection({
+      host,
+      port,
+      user,
+      password,
+    });
+    await connection.query(
+      `CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
+    );
+    await connection.end();
+    console.log(`✓ Database '${dbName}' diverifikasi / dibuat otomatis.`);
+  } catch (err) {
+    console.warn(`[Peringatan DB] Tidak dapat membuat database '${dbName}' otomatis: ${err.message}`);
+  }
+}
 
 function tryAdbReverse(port) {
   exec(`adb reverse tcp:${port} tcp:${port}`, (err, stdout) => {
@@ -145,17 +170,21 @@ async function syncExistingCutiNotifications() {
   }
 }
 
-sequelize
-  .sync() // ganti { alter: true } saat development kalau skema berubah
-  .then(async () => {
-    console.log('Database terhubung & model tersinkronisasi');
+async function startServer() {
+  try {
+    await ensureDatabaseExists();
+    await sequelize.sync(); // ganti { alter: true } saat development kalau skema berubah
+    console.log('✓ Database terhubung & model tersinkronisasi');
     await seedDefaultUsers();
     await syncExistingCutiNotifications();
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server jalan di port ${PORT} (http://0.0.0.0:${PORT})`);
+      console.log(`✓ Server jalan di port ${PORT} (http://0.0.0.0:${PORT})`);
       tryAdbReverse(PORT);
     });
-  })
-  .catch((err) => {
-    console.error('Gagal konek ke database:', err.message);
-  });
+  } catch (err) {
+    console.error('✗ Gagal konek ke database:', err.message);
+    console.error('Tips: Pastikan MySQL sudah dijalankan di XAMPP/Laragon dan konfigurasi .env sudah sesuai.');
+  }
+}
+
+startServer();
