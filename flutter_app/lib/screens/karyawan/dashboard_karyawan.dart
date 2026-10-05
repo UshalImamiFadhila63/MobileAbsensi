@@ -5,6 +5,7 @@ import 'riwayat_absen_screen.dart';
 import 'laporan_screen.dart';
 import 'profile_screen.dart';
 import '../../core/constants.dart';
+import '../../core/app_events.dart';
 
 class DashboardKaryawan extends StatefulWidget {
   final int initialIndex;
@@ -37,7 +38,17 @@ class _DashboardKaryawanState extends State<DashboardKaryawan> {
       body: IndexedStack(index: _index, children: _screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: (i) {
+          setState(() => _index = i);
+          if (i == 0) {
+            // Kembali ke Home -> Segarkan profil & status absensi
+            AppEvents.notifyProfileUpdated();
+            AppEvents.notifyAttendanceUpdated();
+          } else if (i == 2) {
+            // Pindah ke Riwayat -> Segarkan riwayat absensi terbaru
+            AppEvents.notifyAttendanceUpdated();
+          }
+        },
         indicatorColor: AppConstants.primaryColor.withValues(alpha: 0.15),
         backgroundColor: Colors.white,
         elevation: 4,

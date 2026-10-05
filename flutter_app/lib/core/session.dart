@@ -28,6 +28,11 @@ class Session {
     return prefs.getString(AppConstants.prefKeyNama);
   }
 
+  static Future<void> setNama(String nama) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.prefKeyNama, nama);
+  }
+
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(AppConstants.prefKeyToken);

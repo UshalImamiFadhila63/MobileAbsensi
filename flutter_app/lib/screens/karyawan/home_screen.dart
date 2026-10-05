@@ -3,6 +3,7 @@ import '../../core/api_service.dart';
 import '../../core/constants.dart';
 import '../../core/session.dart';
 import '../../core/notifikasi_service.dart';
+import '../../core/app_events.dart';
 import 'absensi_screen.dart';
 import 'riwayat_absen_screen.dart';
 import 'laporan_screen.dart';
@@ -33,6 +34,21 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     NotifikasiService.init();
     _muat();
+    AppEvents.profileUpdated.addListener(_onSyncEvent);
+    AppEvents.attendanceUpdated.addListener(_onSyncEvent);
+  }
+
+  void _onSyncEvent() {
+    if (mounted) {
+      _muat();
+    }
+  }
+
+  @override
+  void dispose() {
+    AppEvents.profileUpdated.removeListener(_onSyncEvent);
+    AppEvents.attendanceUpdated.removeListener(_onSyncEvent);
+    super.dispose();
   }
 
   Future<void> _muat() async {
@@ -46,8 +62,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
       try {
         final prof = await ApiService.getProfile();
-        if (mounted && prof['foto_profil'] != null) {
-          _fotoProfil = prof['foto_profil'];
+        if (mounted) {
+          if (prof['nama'] != null && prof['nama'].toString().trim().isNotEmpty) {
+            _nama = prof['nama'].toString().trim();
+            await Session.setNama(_nama);
+          }
+          if (prof['foto_profil'] != null) {
+            _fotoProfil = prof['foto_profil'];
+          }
         }
       } catch (_) {}
 

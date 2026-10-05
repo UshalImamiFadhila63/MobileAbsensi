@@ -8,6 +8,7 @@ import 'ubah_password_screen.dart';
 import 'kebijakan_privasi_screen.dart';
 import 'components/notifikasi_karyawan_popup.dart';
 import '../../core/notifikasi_service.dart';
+import '../../core/app_events.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -24,6 +25,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _muat();
+    AppEvents.profileUpdated.addListener(_muat);
+  }
+
+  @override
+  void dispose() {
+    AppEvents.profileUpdated.removeListener(_muat);
+    super.dispose();
   }
 
   Future<void> _muat() async {

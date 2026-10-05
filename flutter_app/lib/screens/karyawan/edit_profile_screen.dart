@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/api_service.dart';
 import '../../core/constants.dart';
+import '../../core/session.dart';
+import '../../core/app_events.dart';
 
 /// Halaman Edit Profil Karyawan
 /// Dibuat 100% persis sesuai desain mockup Figma:
@@ -179,6 +181,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         jabatan: widget.user['jabatan'] ?? 'Teknisi Drone Senior',
         foto: _fotoBaru,
       );
+
+      // Perbarui Session nama lokal & broadcast event ke Home & Profile
+      await Session.setNama(nama);
+      AppEvents.notifyProfileUpdated();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

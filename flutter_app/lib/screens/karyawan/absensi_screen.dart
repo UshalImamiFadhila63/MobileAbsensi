@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api_service.dart';
 import 'verifikasi_wajah_screen.dart';
 import 'validasi_lokasi_screen.dart';
+import '../../core/app_events.dart';
 
 class AbsensiScreen extends StatefulWidget {
   final bool initialIsMasuk;
@@ -130,6 +131,7 @@ class _AbsensiScreenState extends State<AbsensiScreen> {
 
     if (sukses == true) {
       _muatStatus();
+      AppEvents.notifyAttendanceUpdated();
     }
   }
 

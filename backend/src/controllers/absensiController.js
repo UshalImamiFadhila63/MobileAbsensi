@@ -136,7 +136,7 @@ exports.riwayatSaya = async (req, res) => {
     const data = await Absensi.findAll({
       where,
       include: [{ model: User, attributes: ['id', 'nama', 'email', 'jabatan', 'foto_profil'] }],
-      order: [['tanggal', 'DESC']],
+      order: [['tanggal', 'DESC'], ['id', 'DESC']],
     });
     res.json(data);
   } catch (err) {

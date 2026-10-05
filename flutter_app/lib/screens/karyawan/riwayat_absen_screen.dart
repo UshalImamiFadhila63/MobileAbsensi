@@ -3,6 +3,7 @@ import '../../core/api_service.dart';
 import '../../core/constants.dart';
 import 'detail_absensi_screen.dart';
 import 'pengajuan_cuti_screen.dart';
+import '../../core/app_events.dart';
 
 /// Halaman Pusat Riwayat Karyawan (Riwayat Absensi & Riwayat Pengajuan Cuti)
 /// Menggunakan Segmented Tab Bar di bagian atas:
@@ -136,11 +137,19 @@ class _RiwayatAbsenScreenState extends State<RiwayatAbsenScreen> {
     _muatData();
     _muatDataCuti();
     _searchCtrl.addListener(() => setState(() {}));
+    AppEvents.attendanceUpdated.addListener(_onAttendanceUpdated);
+  }
+
+  void _onAttendanceUpdated() {
+    if (mounted) {
+      _muatData();
+    }
   }
 
   @override
   void dispose() {
     _searchCtrl.dispose();
+    AppEvents.attendanceUpdated.removeListener(_onAttendanceUpdated);
     super.dispose();
   }
 
@@ -314,6 +323,39 @@ class _RiwayatAbsenScreenState extends State<RiwayatAbsenScreen> {
           fontWeight: FontWeight.bold,
           color: textColor,
         ),
+      ),
+    );
+  }
+
+  Widget _buildPulangPill(bool sudahPulang) {
+    final bg = sudahPulang ? const Color(0xFFE0F2FE) : const Color(0xFFF3F4F6);
+    final textColor = sudahPulang ? const Color(0xFF0284C7) : const Color(0xFF9CA3AF);
+    final text = sudahPulang ? 'Sudah Pulang' : 'Belum Pulang';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            sudahPulang ? Icons.check_circle_rounded : Icons.access_time_rounded,
+            size: 11,
+            color: textColor,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -508,9 +550,11 @@ class _RiwayatAbsenScreenState extends State<RiwayatAbsenScreen> {
     final query = _searchCtrl.text.trim().toLowerCase();
     final filtered = _listRiwayat.where((item) {
       final st = (item['status'] ?? '').toString();
+      final jp = (item['jam_pulang'] ?? '').toString();
       if (_selectedFilter == 'Hadir' && !st.toLowerCase().contains('hadir') && !st.toLowerCase().contains('awal') && !st.toLowerCase().contains('tepat')) {
         return false;
       }
+      if (_selectedFilter == 'Sudah Pulang' && (jp.isEmpty || jp == '—')) return false;
       if (_selectedFilter == 'Terlambat' && !st.toLowerCase().contains('terlambat')) return false;
       if (_selectedFilter == 'Izin Cuti' && (!st.toLowerCase().contains('cuti') && !st.toLowerCase().contains('izin'))) return false;
 
@@ -563,6 +607,8 @@ class _RiwayatAbsenScreenState extends State<RiwayatAbsenScreen> {
                   _buildFilterChip('Semua'),
                   const SizedBox(width: 8),
                   _buildFilterChip('Hadir'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Sudah Pulang'),
                   const SizedBox(width: 8),
                   _buildFilterChip('Terlambat'),
                   const SizedBox(width: 8),
@@ -922,7 +968,10 @@ class _RiwayatAbsenScreenState extends State<RiwayatAbsenScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 6,
+                        runSpacing: 4,
                         children: [
                           Text(
                             item['hari'] ?? 'Hari',
@@ -932,27 +981,58 @@ class _RiwayatAbsenScreenState extends State<RiwayatAbsenScreen> {
                               color: Color(0xFF111827),
                             ),
                           ),
-                          const SizedBox(width: 8),
                           _buildStatusPill(item['status'] ?? 'Hadir'),
+                          if ((item['status'] ?? '') != 'Izin Cuti')
+                            _buildPulangPill(item['jam_pulang'] != null && item['jam_pulang'] != '—'),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      RichText(
-                        text: TextSpan(
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-                          children: [
-                            const TextSpan(text: 'Masuk: '),
-                            TextSpan(
-                              text: '${item['jam_masuk']}  ',
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1F2937)),
-                            ),
-                            const TextSpan(text: 'Pulang: '),
-                            TextSpan(
-                              text: '${item['jam_pulang']}',
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1F2937)),
-                            ),
-                          ],
-                        ),
+                      Row(
+                        children: [
+                          // Jam Masuk
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.login_rounded, size: 13, color: Color(0xFF16A34A)),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${item['jam_masuk']}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1F2937),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 14),
+                          // Jam Pulang
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.logout_rounded,
+                                size: 13,
+                                color: (item['jam_pulang'] != null && item['jam_pulang'] != '—')
+                                    ? const Color(0xFF0284C7)
+                                    : const Color(0xFF9CA3AF),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                (item['jam_pulang'] != null && item['jam_pulang'] != '—')
+                                    ? '${item['jam_pulang']}'
+                                    : 'Belum Pulang',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: (item['jam_pulang'] != null && item['jam_pulang'] != '—')
+                                      ? const Color(0xFF1F2937)
+                                      : const Color(0xFF9CA3AF),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ],
                   ),
