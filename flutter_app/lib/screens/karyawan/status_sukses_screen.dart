@@ -237,7 +237,15 @@ class _StatusSuksesScreenState extends State<StatusSuksesScreen> {
                           const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
                           _buildTableRow('Tanggal', tanggalVal),
                           const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
-                          _buildTableRow('Status', statusVal),
+                          _buildTableRow(
+                            'Status',
+                            statusVal,
+                            valueColor: statusVal.toLowerCase().contains('terlambat')
+                                ? const Color(0xFFEA580C)
+                                : (statusVal.toLowerCase().contains('awal') || statusVal.toLowerCase().contains('tepat')
+                                    ? const Color(0xFF16A34A)
+                                    : const Color(0xFF111827)),
+                          ),
                           const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
                           _buildTableRow('Lokasi', lokasiVal),
                         ],
@@ -377,7 +385,7 @@ class _StatusSuksesScreenState extends State<StatusSuksesScreen> {
   }
 
   // WIDGET HELPER: Baris Tabel Detail
-  Widget _buildTableRow(String label, String value) {
+  Widget _buildTableRow(String label, String value, {Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
@@ -396,10 +404,10 @@ class _StatusSuksesScreenState extends State<StatusSuksesScreen> {
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13.5,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF111827),
+                color: valueColor ?? const Color(0xFF111827),
               ),
             ),
           ),

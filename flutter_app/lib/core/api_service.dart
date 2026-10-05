@@ -76,10 +76,12 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> updateProfileTextOnly({
+  static Future<Map<String, dynamic>> updateProfile({
     required String nama,
     required String noHp,
     required String jabatan,
+    String? email,
+    File? foto,
   }) async {
     final uri = Uri.parse('${AppConstants.baseUrl}/auth/profile');
     final req = http.MultipartRequest('PUT', uri);
@@ -87,9 +89,44 @@ class ApiService {
     req.fields['nama'] = nama;
     req.fields['no_hp'] = noHp;
     req.fields['jabatan'] = jabatan;
+    if (email != null && email.trim().isNotEmpty) {
+      req.fields['email'] = email.trim();
+    }
+    if (foto != null) {
+      req.files.add(await http.MultipartFile.fromPath('foto', foto.path));
+    }
 
-    final streamed = await req.send().timeout(const Duration(seconds: 20));
+    final streamed = await req.send().timeout(const Duration(seconds: 25));
     final res = await http.Response.fromStream(streamed);
+    return _handle(res);
+  }
+
+  static Future<Map<String, dynamic>> updateProfileTextOnly({
+    required String nama,
+    required String noHp,
+    required String jabatan,
+    String? email,
+  }) async {
+    return updateProfile(
+      nama: nama,
+      noHp: noHp,
+      jabatan: jabatan,
+      email: email,
+    );
+  }
+
+  static Future<Map<String, dynamic>> ubahPassword({
+    required String passwordLama,
+    required String passwordBaru,
+  }) async {
+    final res = await http.put(
+      Uri.parse('${AppConstants.baseUrl}/auth/ubah-password'),
+      headers: await _headers(),
+      body: jsonEncode({
+        'password_lama': passwordLama,
+        'password_baru': passwordBaru,
+      }),
+    ).timeout(const Duration(seconds: 15));
     return _handle(res);
   }
 
@@ -301,6 +338,31 @@ class ApiService {
       headers: await _headers(),
     ).timeout(const Duration(seconds: 15));
     return _handleList(res);
+  }
+
+  // ---------- NOTIFIKASI ----------
+  static Future<List<dynamic>> getNotifikasi() async {
+    final res = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/notifikasi'),
+      headers: await _headers(),
+    ).timeout(const Duration(seconds: 15));
+    return _handleList(res);
+  }
+
+  static Future<void> tandaiNotifikasiDibaca(int id) async {
+    final res = await http.put(
+      Uri.parse('${AppConstants.baseUrl}/notifikasi/$id/read'),
+      headers: await _headers(),
+    ).timeout(const Duration(seconds: 15));
+    _handle(res);
+  }
+
+  static Future<void> tandaiSemuaNotifikasiDibaca() async {
+    final res = await http.put(
+      Uri.parse('${AppConstants.baseUrl}/notifikasi/read-all'),
+      headers: await _headers(),
+    ).timeout(const Duration(seconds: 15));
+    _handle(res);
   }
 
   static dynamic _handle(http.Response res) {

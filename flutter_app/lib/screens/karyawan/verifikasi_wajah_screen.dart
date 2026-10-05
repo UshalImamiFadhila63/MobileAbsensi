@@ -19,26 +19,99 @@ class VerifikasiWajahScreen extends StatefulWidget {
 class _VerifikasiWajahScreenState extends State<VerifikasiWajahScreen> {
   File? _fotoWajah;
   bool _loadingGps = false;
+  bool _isProcessing = false;
+  int _verifStep = 0; // 0: belum ada foto, 1: Deteksi Wajah, 2: Verifikasi Identitas, 3: Konfirmasi Hasil
 
-  @override
-  void initState() {
-    super.initState();
-    // Secara otomatis dapat mengambil foto dari kamera depan jika belum ada foto
+  Future<void> _pilihAtauAmbilFoto() async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF27315B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Ambil Foto Wajah',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 14),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded, color: Color(0xFF22C55E)),
+                title: const Text('Buka Kamera (Selfie)', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _ambilFoto(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded, color: Color(0xFF60A5FA)),
+                title: const Text('Pilih dari Galeri', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _ambilFoto(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  Future<void> _ambilUlangFoto() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.camera,
-      preferredCameraDevice: CameraDevice.front,
-      imageQuality: 80,
-    );
-    if (picked != null) {
-      setState(() => _fotoWajah = File(picked.path));
+  Future<void> _ambilFoto(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        preferredCameraDevice: CameraDevice.front,
+        imageQuality: 85,
+      );
+
+      if (picked != null) {
+        if (!mounted) return;
+        setState(() {
+          _fotoWajah = File(picked.path);
+          _isProcessing = true;
+          _verifStep = 0;
+        });
+
+        // 1. Simulasi bertahap: Deteksi Wajah
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!mounted) return;
+        setState(() => _verifStep = 1);
+
+        // 2. Simulasi bertahap: Verifikasi Identitas
+        await Future.delayed(const Duration(milliseconds: 600));
+        if (!mounted) return;
+        setState(() => _verifStep = 2);
+
+        // 3. Simulasi bertahap: Konfirmasi Hasil
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!mounted) return;
+        setState(() {
+          _verifStep = 3;
+          _isProcessing = false;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      _tampilkanAlert('Gagal Mengambil Foto', e.toString());
     }
   }
 
   Future<void> _lanjutValidasiGps() async {
+    if (_fotoWajah == null || _verifStep < 3) return;
+
     setState(() => _loadingGps = true);
 
     try {
@@ -75,34 +148,15 @@ class _VerifikasiWajahScreenState extends State<VerifikasiWajahScreen> {
             );
       }
 
-      // 2. Pastikan file foto tersedia, jika belum ambil foto selfie terlebih dahulu
-      File fileToUpload;
-      if (_fotoWajah != null) {
-        fileToUpload = _fotoWajah!;
-      } else {
-        final picker = ImagePicker();
-        final picked = await picker.pickImage(
-          source: ImageSource.camera,
-          preferredCameraDevice: CameraDevice.front,
-          imageQuality: 80,
-        );
-        if (picked == null) {
-          if (mounted) setState(() => _loadingGps = false);
-          return;
-        }
-        fileToUpload = File(picked.path);
-        setState(() => _fotoWajah = fileToUpload);
-      }
-
-      // 3. Lanjut ke Layar Validasi Lokasi
       if (!mounted) return;
       setState(() => _loadingGps = false);
 
+      // 2. Lanjut ke Layar Validasi Lokasi
       final sukses = await Navigator.of(context).push<bool>(
         MaterialPageRoute(
           builder: (_) => ValidasiLokasiScreen(
             isMasuk: widget.isMasuk,
-            fotoWajah: fileToUpload,
+            fotoWajah: _fotoWajah!,
             initialPosition: position,
           ),
         ),
@@ -135,10 +189,23 @@ class _VerifikasiWajahScreenState extends State<VerifikasiWajahScreen> {
     );
   }
 
+  String get _statusTitle {
+    if (_fotoWajah == null) return 'Ambil Foto Wajah';
+    if (_isProcessing) return 'Memverifikasi Wajah...';
+    return 'Wajah Terverifikasi!';
+  }
+
+  String get _statusSubtitle {
+    if (_fotoWajah == null) return 'Ketuk kotak kamera di atas untuk mengambil foto';
+    if (_isProcessing) return 'Sistem sedang menganalisis biometrik wajah Anda...';
+    return 'Posisikan wajah Anda di dalam frame kamera';
+  }
+
   @override
   Widget build(BuildContext context) {
     const bgColor = Color(0xFF1E2548);
     final isMasuk = widget.isMasuk;
+    final bool canContinue = _fotoWajah != null && _verifStep >= 3 && !_isProcessing && !_loadingGps;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -203,17 +270,19 @@ class _VerifikasiWajahScreenState extends State<VerifikasiWajahScreen> {
               ),
               const SizedBox(height: 36),
 
-              // 2. Frame Pemindaian Wajah (Squircle Ganda Hijau Neon)
+              // 2. Kotak Kamera Pemindaian Wajah (Squircle Ganda Hijau Neon)
               GestureDetector(
-                onTap: _ambilUlangFoto,
+                onTap: _isProcessing ? null : _pilihAtauAmbilFoto,
                 child: Container(
                   width: 250,
                   height: 250,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(28),
                     border: Border.all(
-                      color: const Color(0xFF22C55E).withValues(alpha: 0.8),
-                      width: 1.5,
+                      color: _verifStep >= 3
+                          ? const Color(0xFF22C55E).withValues(alpha: 0.9)
+                          : const Color(0xFF22C55E).withValues(alpha: 0.6),
+                      width: 1.6,
                     ),
                   ),
                   padding: const EdgeInsets.all(8),
@@ -235,6 +304,7 @@ class _VerifikasiWajahScreenState extends State<VerifikasiWajahScreen> {
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
+                          // Tampilkan foto jika sudah diambil
                           if (_fotoWajah != null)
                             Image.file(
                               _fotoWajah!,
@@ -242,21 +312,70 @@ class _VerifikasiWajahScreenState extends State<VerifikasiWajahScreen> {
                               height: double.infinity,
                               fit: BoxFit.cover,
                             ),
-                          // Ikon Lingkaran Centang Hijau di Tengah
-                          Container(
-                            width: 52,
-                            height: 52,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF43A047),
-                              shape: BoxShape.circle,
+
+                          // JIKA BELUM ADA FOTO: Tampilkan Logo Kamera Hijau (Permintaan 2)
+                          if (_fotoWajah == null)
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF43A047),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt_rounded,
+                                    color: Color(0xFF1E2548),
+                                    size: 32,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'Ketuk untuk Ambil Foto',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            )
+                          else if (_isProcessing)
+                            // Overlay loading saat verifikasi bertahap
+                            Container(
+                              color: Colors.black.withValues(alpha: 0.35),
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  color: Color(0xFF22C55E),
+                                  strokeWidth: 3,
+                                ),
+                              ),
+                            )
+                          else if (_verifStep >= 3)
+                            // Badge sukses & opsi ganti foto
+                            Positioned(
+                              bottom: 12,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.65),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.check_circle_rounded, color: Color(0xFF22C55E), size: 16),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Terverifikasi • Ketuk ganti',
+                                      style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.check,
-                              color: Color(0xFF1E2548),
-                              size: 32,
-                              weight: 900,
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -265,58 +384,62 @@ class _VerifikasiWajahScreenState extends State<VerifikasiWajahScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Teks Wajah terverifikasi!
-              const Text(
-                'Wajah terverifikasi!',
-                style: TextStyle(
+              // Status Teks (Dibuat sesuai kondisi foto, Permintaan 3)
+              Text(
+                _statusTitle,
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
-                'Posisikan Wajah Anda di Dalam Frame',
-                style: TextStyle(
+              Text(
+                _statusSubtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
                   fontSize: 13,
                   color: Color(0xFFD1D5DB),
                 ),
               ),
               const SizedBox(height: 32),
 
-              // 3. Checklist Status Box (Deteksi Wajah, Verifikasi Identitas, Konfirmasi Hasil)
-              _buildChecklistTile('Deteksi Wajah'),
+              // 3. Checklist Status Box Bertahap (Permintaan 3)
+              _buildChecklistTile('Deteksi Wajah', _verifStep >= 1, _isProcessing && _verifStep == 0),
               const SizedBox(height: 12),
-              _buildChecklistTile('Verifikasi Identitas'),
+              _buildChecklistTile('Verifikasi Identitas', _verifStep >= 2, _isProcessing && _verifStep == 1),
               const SizedBox(height: 12),
-              _buildChecklistTile('Konfirmasi Hasil'),
+              _buildChecklistTile('Konfirmasi Hasil', _verifStep >= 3, _isProcessing && _verifStep == 2),
               const SizedBox(height: 36),
 
-              // 4. Tombol Aksi: Lanjut Validasi GPS
+              // 4. Tombol Aksi: Lanjut Validasi GPS (Hanya aktif jika foto & verifikasi selesai)
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF43732E), // Warna hijau zaitun pekat sesuai gambar
-                    foregroundColor: Colors.white,
+                    backgroundColor: canContinue
+                        ? const Color(0xFF43732E)
+                        : const Color(0xFF293252),
+                    foregroundColor: canContinue ? Colors.white : Colors.white38,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  onPressed: _loadingGps ? null : _lanjutValidasiGps,
+                  onPressed: canContinue ? _lanjutValidasiGps : null,
                   child: _loadingGps
                       ? const SizedBox(
                           width: 22,
                           height: 22,
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
-                      : const Text(
+                      : Text(
                           'Lanjut Validasi GPS',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
+                            color: canContinue ? Colors.white : Colors.white38,
                           ),
                         ),
                 ),
@@ -329,37 +452,56 @@ class _VerifikasiWajahScreenState extends State<VerifikasiWajahScreen> {
     );
   }
 
-  Widget _buildChecklistTile(String label) {
+  Widget _buildChecklistTile(String label, bool isChecked, bool isLoading) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: const Color(0xFF27315B),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isChecked
+              ? const Color(0xFF22C55E).withValues(alpha: 0.35)
+              : Colors.transparent,
+          width: 1.2,
+        ),
       ),
       child: Row(
         children: [
           Container(
             width: 26,
             height: 26,
-            decoration: const BoxDecoration(
-              color: Color(0xFF22C55E),
+            decoration: BoxDecoration(
+              color: isChecked ? const Color(0xFF22C55E) : const Color(0xFF1E2548),
               shape: BoxShape.circle,
+              border: isChecked
+                  ? null
+                  : Border.all(color: const Color(0xFF4B5563), width: 1.5),
             ),
-            child: const Icon(
-              Icons.check,
-              color: Color(0xFF1E2548),
-              size: 18,
-              weight: 800,
-            ),
+            child: isChecked
+                ? const Icon(
+                    Icons.check,
+                    color: Color(0xFF1E2548),
+                    size: 18,
+                    weight: 800,
+                  )
+                : (isLoading
+                    ? const Padding(
+                        padding: EdgeInsets.all(5.0),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFF22C55E),
+                        ),
+                      )
+                    : null),
           ),
           const SizedBox(width: 14),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14.5,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF22C55E),
+              fontWeight: isChecked ? FontWeight.bold : FontWeight.w500,
+              color: isChecked ? const Color(0xFF22C55E) : const Color(0xFF9CA3AF),
             ),
           ),
         ],

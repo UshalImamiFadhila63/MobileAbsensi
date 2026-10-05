@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/api_service.dart';
 import 'components/notifikasi_sheet.dart';
+import '../karyawan/detail_absensi_screen.dart';
 
 class MonitoringAbsensiScreen extends StatefulWidget {
   final bool showAppBar;
@@ -26,7 +27,7 @@ class MonitoringAbsensiScreen extends StatefulWidget {
 }
 
 class _MonitoringAbsensiScreenState extends State<MonitoringAbsensiScreen> {
-  DateTime _selectedDate = DateTime(2026, 9, 29);
+  DateTime _selectedDate = DateTime.now();
   String _activeFilter = 'semua'; // 'semua', 'hadir', 'terlambat', 'belum'
   late Future<List<dynamic>> _future;
 
@@ -35,62 +36,100 @@ class _MonitoringAbsensiScreenState extends State<MonitoringAbsensiScreen> {
     {
       'id': 1,
       'nama': 'Jungkook',
+      'rawNama': 'Jungkook',
+      'email': 'jungkook@mail.com',
       'initials': 'JK',
       'avatarColor': const Color(0xFF2F6B64),
       'devisi': 'Teknisi\nDrone',
       'jam_masuk': '07:58',
       'jam_pulang': '17:05',
+      'total_jam': '9 jam 7 menit',
       'status': 'hadir',
+      'tanggal_lengkap': 'Jumat, 2 Oktober 2026',
+      'lokasi': 'Kantor Pusat — Jl. Sudirman No. 45',
+      'lat_masuk': -6.949161,
+      'lng_masuk': 107.645018,
     },
     {
       'id': 2,
       'nama': 'Dhila\nCimoy',
+      'rawNama': 'Dhila Cimoy',
+      'email': 'dhila@mail.com',
       'initials': 'DC',
       'avatarColor': const Color(0xFF385C83),
       'devisi': 'Operator',
       'jam_masuk': '08:30',
       'jam_pulang': '17:00',
+      'total_jam': '8 jam 30 menit',
       'status': 'terlambat',
+      'tanggal_lengkap': 'Jumat, 2 Oktober 2026',
+      'lokasi': 'Kantor Pusat — Jl. Sudirman No. 45',
+      'lat_masuk': -6.949210,
+      'lng_masuk': 107.645120,
     },
     {
       'id': 3,
       'nama': 'Lino\nBoncel',
+      'rawNama': 'Lino Boncel',
+      'email': 'lino@mail.com',
       'initials': 'LB',
       'avatarColor': const Color(0xFF2F6B64),
       'devisi': 'Analis\nData',
       'jam_masuk': '07:45',
       'jam_pulang': '17:15',
+      'total_jam': '9 jam 30 menit',
       'status': 'hadir',
+      'tanggal_lengkap': 'Jumat, 2 Oktober 2026',
+      'lokasi': 'Kantor Pusat — Jl. Sudirman No. 45',
+      'lat_masuk': -6.949180,
+      'lng_masuk': 107.645030,
     },
     {
       'id': 4,
       'nama': 'Alek\nSiregar',
+      'rawNama': 'Alek Siregar',
+      'email': 'alek@mail.com',
       'initials': 'AS',
       'avatarColor': const Color(0xFF2F6B64),
       'devisi': 'Teknisi\nDrone',
       'jam_masuk': '—',
       'jam_pulang': '—',
+      'total_jam': '—',
       'status': 'belum',
+      'tanggal_lengkap': 'Jumat, 2 Oktober 2026',
+      'lokasi': 'Kantor Pusat — Jl. Sudirman No. 45',
     },
     {
       'id': 5,
       'nama': 'Apri\nUcup',
+      'rawNama': 'Apri Ucup',
+      'email': 'apri@mail.com',
       'initials': 'AU',
       'avatarColor': const Color(0xFF385C83),
       'devisi': 'Admin',
       'jam_masuk': '08:02',
       'jam_pulang': '16:58',
+      'total_jam': '8 jam 56 menit',
       'status': 'terlambat',
+      'tanggal_lengkap': 'Jumat, 2 Oktober 2026',
+      'lokasi': 'Kantor Pusat — Jl. Sudirman No. 45',
+      'lat_masuk': -6.949150,
+      'lng_masuk': 107.645010,
     },
     {
       'id': 6,
       'nama': 'Lilit\nRansink',
-      'initials': 'AU', // Di mockup inisial avatar adalah AU
+      'rawNama': 'Lilit Ransink',
+      'email': 'lilit@mail.com',
+      'initials': 'AU',
       'avatarColor': const Color(0xFF385C83),
       'devisi': 'Teknisi\nDrone',
       'jam_masuk': '—',
       'jam_pulang': '—',
+      'total_jam': '—',
       'status': 'belum',
+      'tanggal_lengkap': 'Jumat, 2 Oktober 2026',
+      'lokasi': 'Kantor Pusat — Jl. Sudirman No. 45',
     },
   ];
 
@@ -477,25 +516,45 @@ class _MonitoringAbsensiScreenState extends State<MonitoringAbsensiScreen> {
                             ? '${parts[0]}\n${parts.sublist(1).join(' ')}'
                             : rawNama;
 
-                        // Tentukan status
+                        // Tentukan status berdasarkan patokan jam 08:00 WIB
                         String itemStatus = 'hadir';
-                        if (statusStr.contains('terlambat')) {
+                        if (statusStr.contains('terlambat') || statusStr == 'telat') {
                           itemStatus = 'terlambat';
                         } else if (statusStr.contains('cuti') || statusStr.contains('izin')) {
                           itemStatus = 'cuti';
                         } else if (jamMasuk == '—' || jamMasuk.isEmpty || statusStr.contains('belum')) {
                           itemStatus = 'belum';
+                        } else {
+                          final clean = jamMasuk.replaceAll(' WIB', '').trim();
+                          final p = clean.split(':');
+                          if (p.length >= 2) {
+                            final h = int.tryParse(p[0]) ?? 0;
+                            final m = int.tryParse(p[1]) ?? 0;
+                            if (h > 8 || (h == 8 && m > 0)) {
+                              itemStatus = 'terlambat';
+                            }
+                          }
                         }
 
                         return {
+                          ...k,
                           'id': k['id'] ?? (i + 1),
                           'nama': formattedNama,
+                          'rawNama': rawNama,
                           'initials': initials,
                           'avatarColor': color,
                           'devisi': devisi,
                           'jam_masuk': jamMasuk,
                           'jam_pulang': jamPulang,
                           'status': itemStatus,
+                          'foto_masuk': k['foto_masuk'],
+                          'foto_pulang': k['foto_pulang'],
+                          'lat_masuk': k['lat_masuk'],
+                          'lng_masuk': k['lng_masuk'],
+                          'lat_pulang': k['lat_pulang'],
+                          'lng_pulang': k['lng_pulang'],
+                          'tanggal': k['tanggal'],
+                          'User': k['User'],
                         };
                       }).toList();
                     } else {
@@ -668,85 +727,98 @@ class _MonitoringAbsensiScreenState extends State<MonitoringAbsensiScreen> {
                                     final jamMasuk = item['jam_masuk'] as String;
                                     final jamPulang = item['jam_pulang'] as String;
 
-                                    return Row(
-                                      crossAxisAlignment: CrossAxisAlignment.center,
-                                      children: [
-                                        // 1. NAMA + AVATAR
-                                        Expanded(
-                                          flex: 4,
-                                          child: Row(
-                                            crossAxisAlignment: CrossAxisAlignment.center,
-                                            children: [
-                                              CircleAvatar(
-                                                radius: 16,
-                                                backgroundColor: avatarColor,
-                                                child: Text(
-                                                  initials,
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.bold,
+                                    return InkWell(
+                                      onTap: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => DetailAbsensiScreen(item: item),
+                                          ),
+                                        );
+                                      },
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 4),
+                                        child: Row(
+                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                          children: [
+                                            // 1. NAMA + AVATAR
+                                            Expanded(
+                                              flex: 4,
+                                              child: Row(
+                                                crossAxisAlignment: CrossAxisAlignment.center,
+                                                children: [
+                                                  CircleAvatar(
+                                                    radius: 16,
+                                                    backgroundColor: avatarColor,
+                                                    child: Text(
+                                                      initials,
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
                                                   ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      nama,
+                                                      style: const TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Color(0xFF111827),
+                                                        height: 1.25,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+
+                                            // 2. DEVISI
+                                            Expanded(
+                                              flex: 3,
+                                              child: Text(
+                                                devisi,
+                                                style: const TextStyle(
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Color(0xFF6B7280),
+                                                  height: 1.25,
                                                 ),
                                               ),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: Text(
-                                                  nama,
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Color(0xFF111827),
-                                                    height: 1.25,
-                                                  ),
+                                            ),
+
+                                            // 3. JAM MASUK
+                                            Expanded(
+                                              flex: 3,
+                                              child: Text(
+                                                jamMasuk,
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFF111827),
                                                 ),
                                               ),
-                                            ],
-                                          ),
-                                        ),
-
-                                        // 2. DEVISI
-                                        Expanded(
-                                          flex: 3,
-                                          child: Text(
-                                            devisi,
-                                            style: const TextStyle(
-                                              fontSize: 11.5,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFF6B7280),
-                                              height: 1.25,
                                             ),
-                                          ),
-                                        ),
 
-                                        // 3. JAM MASUK
-                                        Expanded(
-                                          flex: 3,
-                                          child: Text(
-                                            jamMasuk,
-                                            textAlign: TextAlign.center,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF111827),
+                                            // 4. JAM PULANG
+                                            Expanded(
+                                              flex: 3,
+                                              child: Text(
+                                                jamPulang,
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFF111827),
+                                                ),
+                                              ),
                                             ),
-                                          ),
+                                          ],
                                         ),
-
-                                        // 4. JAM PULANG
-                                        Expanded(
-                                          flex: 3,
-                                          child: Text(
-                                            jamPulang,
-                                            textAlign: TextAlign.center,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF111827),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                      ),
                                     );
                                   },
                                 ),

@@ -363,14 +363,25 @@ class _PersetujuanCutiScreenState extends State<PersetujuanCutiScreen> {
                                 onPressed: _bukaNotifikasi,
                               ),
                               Positioned(
-                                top: 2,
-                                right: 2,
+                                top: -2,
+                                right: -2,
                                 child: Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFFEF4444),
-                                    shape: BoxShape.circle,
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEF4444),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.white, width: 1.5),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: const Text(
+                                    '3',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.bold,
+                                      height: 1,
+                                    ),
                                   ),
                                 ),
                               ),

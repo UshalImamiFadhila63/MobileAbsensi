@@ -9,12 +9,14 @@ require('./src/models/User');
 require('./src/models/Absensi');
 require('./src/models/Cuti');
 require('./src/models/Laporan');
+require('./src/models/Notifikasi');
 
 const authRoutes = require('./src/routes/authRoutes');
 const absensiRoutes = require('./src/routes/absensiRoutes');
 const cutiRoutes = require('./src/routes/cutiRoutes');
 const laporanRoutes = require('./src/routes/laporanRoutes');
 const karyawanRoutes = require('./src/routes/karyawanRoutes');
+const notifikasiRoutes = require('./src/routes/notifikasiRoutes');
 
 const app = express();
 
@@ -30,13 +32,39 @@ app.use('/api/absensi', absensiRoutes);
 app.use('/api/cuti', cutiRoutes);
 app.use('/api/laporan', laporanRoutes);
 app.use('/api/karyawan', karyawanRoutes);
+app.use('/api/notifikasi', notifikasiRoutes);
 
 app.get('/', (req, res) => res.json({ message: 'Absensi API aktif' }));
 
 const PORT = process.env.PORT || 3000;
 const { exec } = require('child_process');
 const bcrypt = require('bcryptjs');
+const mysql = require('mysql2/promise');
 const User = require('./src/models/User');
+
+async function ensureDatabaseExists() {
+  const host = process.env.DB_HOST || 'localhost';
+  const port = Number(process.env.DB_PORT) || 3306;
+  const user = process.env.DB_USER || 'root';
+  const password = process.env.DB_PASS || '';
+  const dbName = process.env.DB_NAME || 'absensi_db';
+
+  try {
+    const connection = await mysql.createConnection({
+      host,
+      port,
+      user,
+      password,
+    });
+    await connection.query(
+      `CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
+    );
+    await connection.end();
+    console.log(`✓ Database '${dbName}' diverifikasi / dibuat otomatis.`);
+  } catch (err) {
+    console.warn(`[Peringatan DB] Tidak dapat membuat database '${dbName}' otomatis: ${err.message}`);
+  }
+}
 
 function tryAdbReverse(port) {
   exec(`adb reverse tcp:${port} tcp:${port}`, (err, stdout) => {
@@ -89,15 +117,10 @@ async function seedDefaultUsers() {
 
     if (karyawanCreated) {
       console.log('✓ Akun Karyawan Demo (karyawan@mail.com) berhasil dibuat otomatis.');
-    } else {
-      // Pastikan password & status aktif jika user sudah ada sebelumnya
-      const match = await bcrypt.compare('karyawan123', karyawanUser.password);
-      if (!match || !karyawanUser.is_active) {
-        karyawanUser.password = karyawanPass;
-        karyawanUser.is_active = true;
-        await karyawanUser.save();
-        console.log('✓ Password & status akun Karyawan Demo disinkronkan kembali.');
-      }
+    } else if (!karyawanUser.is_active) {
+      karyawanUser.is_active = true;
+      await karyawanUser.save();
+      console.log('✓ Status aktif akun Karyawan Demo disinkronkan kembali.');
     }
 
     console.log('✓ Akun default demo (admin & karyawan) siap digunakan.');
@@ -106,16 +129,61 @@ async function seedDefaultUsers() {
   }
 }
 
-sequelize
-  .sync() // ganti { alter: true } saat development kalau skema berubah
-  .then(async () => {
-    console.log('Database terhubung & model tersinkronisasi');
+async function syncExistingCutiNotifications() {
+  try {
+    const Cuti = require('./src/models/Cuti');
+    const Notifikasi = require('./src/models/Notifikasi');
+    const listCuti = await Cuti.findAll({ order: [['id', 'ASC']] });
+    for (const c of listCuti) {
+      if (c.status === 'diterima' || c.status === 'ditolak') {
+        const isAcc = c.status === 'diterima';
+        const judul = isAcc ? 'Pengajuan Cuti Disetujui' : 'Pengajuan Cuti Ditolak';
+        const pesan = isAcc
+          ? `Pengajuan cuti ${c.jenis_cuti} (${c.tanggal_mulai} s/d ${c.tanggal_selesai}) telah disetujui admin.`
+          : `Pengajuan cuti ${c.jenis_cuti} (${c.tanggal_mulai} s/d ${c.tanggal_selesai}) ditolak. Alasan: ${c.catatan_admin || 'Tidak ada catatan.'}`;
+
+        const existing = await Notifikasi.findOne({
+          where: {
+            user_id: c.user_id,
+            tipe: 'cuti',
+            judul,
+            pesan,
+          },
+        });
+
+        if (!existing) {
+          await Notifikasi.create({
+            user_id: c.user_id,
+            tipe: 'cuti',
+            judul,
+            pesan,
+            cta_text: 'Lihat Status & Riwayat Cuti →',
+            data: JSON.stringify({ cuti_id: c.id, tabIndex: 1 }),
+            is_read: false,
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Gagal sync notifikasi cuti:', err.message);
+  }
+}
+
+async function startServer() {
+  try {
+    await ensureDatabaseExists();
+    await sequelize.sync(); // ganti { alter: true } saat development kalau skema berubah
+    console.log('✓ Database terhubung & model tersinkronisasi');
     await seedDefaultUsers();
+    await syncExistingCutiNotifications();
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server jalan di port ${PORT} (http://0.0.0.0:${PORT})`);
+      console.log(`✓ Server jalan di port ${PORT} (http://0.0.0.0:${PORT})`);
       tryAdbReverse(PORT);
     });
-  })
-  .catch((err) => {
-    console.error('Gagal konek ke database:', err.message);
-  });
+  } catch (err) {
+    console.error('✗ Gagal konek ke database:', err.message);
+    console.error('Tips: Pastikan MySQL sudah dijalankan di XAMPP/Laragon dan konfigurasi .env sudah sesuai.');
+  }
+}
+
+startServer();

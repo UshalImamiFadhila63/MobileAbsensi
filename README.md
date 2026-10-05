@@ -15,13 +15,12 @@ flutter_app/    # Aplikasi mobile - Flutter
 
 ```bash
 cd backend
-cp .env.example .env      # sesuaikan DB_*, JWT_SECRET, dan koordinat kantor (OFFICE_LAT/LNG)
+copy .env.example .env    # di Windows (atau: cp .env.example .env di Mac/Linux)
 npm install
-npm run dev                # atau: npm start
+npm run dev
 ```
 
-Buat database MySQL kosong dengan nama sesuai `DB_NAME` di `.env` — tabel akan
-otomatis dibuat oleh Sequelize saat server pertama kali jalan (`sequelize.sync()`).
+> **Catatan Database:** Pastikan MySQL di XAMPP / Laragon sudah **START**. Database `absensi_db` akan **otomatis dibuat** dan akun demo akan langsung di-seed saat server pertama kali dijalankan! Tidak perlu membuat database manual di phpMyAdmin.
 
 ### Akun Default Demo (Siap Pakai)
 - **Admin**: `admin@mail.com` | Password: `admin123` *(Akses ke Dashboard Admin & Manajemen Karyawan)*

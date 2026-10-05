@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/api_service.dart';
 import '../../core/constants.dart';
 import '../../core/session.dart';
+import '../../core/notifikasi_service.dart';
 import 'absensi_screen.dart';
 import 'riwayat_absen_screen.dart';
 import 'laporan_screen.dart';
@@ -18,6 +19,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   String _nama = 'Ahmad Fauzi';
+  String? _fotoProfil;
   String? _jamMasuk;
   String? _jamPulang;
 
@@ -29,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    NotifikasiService.init();
     _muat();
   }
 
@@ -40,6 +43,13 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted && nama != null && nama.isNotEmpty) {
         _nama = nama;
       }
+
+      try {
+        final prof = await ApiService.getProfile();
+        if (mounted && prof['foto_profil'] != null) {
+          _fotoProfil = prof['foto_profil'];
+        }
+      } catch (_) {}
 
       if (status['data'] != null) {
         final data = status['data'];
@@ -84,6 +94,11 @@ class _HomeScreenState extends State<HomeScreen> {
         if (mounted && cutiList.isNotEmpty) {
           _countCuti = cutiList.length;
         }
+      } catch (_) {}
+
+      // Sinkronkan notifikasi live dari backend
+      try {
+        await NotifikasiService.syncFromBackend();
       } catch (_) {}
     } catch (_) {
       // biarkan default fallback mockup jika offline
@@ -159,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   children: [
                                     Row(
                                       children: [
-                                        // Avatar Lingkaran Inisial
+                                        // Avatar Lingkaran Inisial / Foto
                                         Container(
                                           width: 44,
                                           height: 44,
@@ -171,14 +186,34 @@ class _HomeScreenState extends State<HomeScreen> {
                                               width: 1.5,
                                             ),
                                           ),
-                                          alignment: Alignment.center,
-                                          child: Text(
-                                            _getInitials(_nama),
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
+                                          child: ClipOval(
+                                            child: AppConstants.getImageUrl(_fotoProfil) != null
+                                                ? Image.network(
+                                                    AppConstants.getImageUrl(_fotoProfil)!,
+                                                    width: 44,
+                                                    height: 44,
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder: (_, __, ___) => Center(
+                                                      child: Text(
+                                                        _getInitials(_nama),
+                                                        style: const TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  )
+                                                : Center(
+                                                    child: Text(
+                                                      _getInitials(_nama),
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                  ),
                                           ),
                                         ),
                                         const SizedBox(width: 12),
@@ -204,28 +239,62 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       ],
                                     ),
-                                    // Lonceng Notifikasi
-                                    IconButton(
-                                      icon: Stack(
-                                        clipBehavior: Clip.none,
-                                        children: [
-                                          const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 26),
-                                          Positioned(
-                                            top: 2,
-                                            right: 2,
-                                            child: Container(
-                                              width: 8,
-                                              height: 8,
-                                              decoration: const BoxDecoration(
-                                                color: Color(0xFFEF4444),
-                                                shape: BoxShape.circle,
-                                              ),
-                                            ),
+                                    // Lonceng Notifikasi dengan Counter Angka Belum Dibaca
+                                    ValueListenableBuilder<int>(
+                                      valueListenable: NotifikasiService.unreadCountNotifier,
+                                      builder: (context, unreadCount, _) {
+                                        return IconButton(
+                                          icon: Stack(
+                                            clipBehavior: Clip.none,
+                                            children: [
+                                              const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 26),
+                                              if (unreadCount > 0)
+                                                Positioned(
+                                                  top: -3,
+                                                  right: -4,
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(
+                                                      horizontal: 5,
+                                                      vertical: 1.5,
+                                                    ),
+                                                    constraints: const BoxConstraints(
+                                                      minWidth: 18,
+                                                      minHeight: 18,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(0xFFEF4444),
+                                                      borderRadius: BorderRadius.circular(10),
+                                                      border: Border.all(
+                                                        color: Colors.white,
+                                                        width: 1.8,
+                                                      ),
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          color: Colors.black.withValues(alpha: 0.25),
+                                                          blurRadius: 4,
+                                                          offset: const Offset(0, 1),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    alignment: Alignment.center,
+                                                    child: Text(
+                                                      unreadCount > 9 ? '9+' : '$unreadCount',
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 10,
+                                                        fontWeight: FontWeight.w800,
+                                                        height: 1.1,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
                                           ),
-                                        ],
-                                      ),
-                                      onPressed: () {
-                                        NotifikasiKaryawanPopup.show(context);
+                                          onPressed: () {
+                                            NotifikasiService.syncFromBackend();
+                                            NotifikasiKaryawanPopup.show(context);
+                                          },
+                                        );
                                       },
                                     ),
                                   ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../core/api_service.dart';
 
 class HomeAdminScreen extends StatefulWidget {
@@ -27,9 +28,9 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
   int _totalKaryawan = 24;
   int _hadirHariIni = 18;
   int _belumAbsen = 4;
-  int _terlambat = 24;
+  int _terlambat = 2;
   int _pengajuanCuti = 3;
-  final int _laporanMasuk = 16;
+  int _laporanMasuk = 16;
 
   List<Map<String, dynamic>> _absensiList = [];
 
@@ -41,29 +42,42 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
 
   Future<void> _muatData() async {
     try {
-      // Muat data karyawan & rekap real dari server
+      // 1. Data Karyawan
       final karyawan = await ApiService.daftarKaryawan();
       if (karyawan.isNotEmpty && mounted) {
         setState(() => _totalKaryawan = karyawan.length);
       }
 
+      // 2. Data Cuti Menunggu
       final cutiMenunggu = await ApiService.daftarPengajuanCuti(status: 'menunggu');
-      if (cutiMenunggu.isNotEmpty && mounted) {
+      if (mounted) {
         setState(() => _pengajuanCuti = cutiMenunggu.length);
       }
 
-      final rekap = await ApiService.rekapAbsensiAdmin();
-      if (rekap.isNotEmpty && mounted) {
+      // 3. Data Laporan Masuk
+      try {
+        final lap = await ApiService.rekapLaporan();
+        if (mounted && lap.isNotEmpty) {
+          setState(() => _laporanMasuk = lap.length);
+        }
+      } catch (_) {}
+
+      // 4. Rekap Absensi Hari Ini
+      final tglHariIni = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final rekap = await ApiService.rekapAbsensiAdmin(tanggal: tglHariIni);
+      if (mounted) {
         int telat = 0;
         for (final item in rekap) {
           final status = (item['status'] ?? '').toString().toLowerCase();
-          if (status.contains('terlambat')) telat++;
+          if (status.contains('terlambat') || status.contains('telat')) telat++;
         }
         setState(() {
-          _absensiList = List<Map<String, dynamic>>.from(rekap);
-          _hadirHariIni = rekap.length;
-          _terlambat = telat;
-          _belumAbsen = (_totalKaryawan - _hadirHariIni).clamp(0, _totalKaryawan);
+          if (rekap.isNotEmpty) {
+            _absensiList = List<Map<String, dynamic>>.from(rekap);
+            _hadirHariIni = rekap.length;
+            _terlambat = telat;
+            _belumAbsen = (_totalKaryawan - _hadirHariIni).clamp(0, _totalKaryawan);
+          }
         });
       }
     } catch (_) {

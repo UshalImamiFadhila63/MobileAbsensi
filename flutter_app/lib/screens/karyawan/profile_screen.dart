@@ -7,6 +7,7 @@ import 'edit_profile_screen.dart';
 import 'ubah_password_screen.dart';
 import 'kebijakan_privasi_screen.dart';
 import 'components/notifikasi_karyawan_popup.dart';
+import '../../core/notifikasi_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -94,6 +95,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final divisi = _user?['divisi'] ?? 'Drone Agriculture';
     final status = _user?['is_active'] == false ? 'Nonaktif' : 'Aktif';
 
+    final fotoUrl = AppConstants.getImageUrl(_user?['foto_profil']);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: SafeArea(
@@ -127,46 +130,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Column(
                           children: [
                             // Avatar Squircle dengan Badge Centang Hijau
-                            Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Container(
-                                  width: 72,
-                                  height: 72,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFCBD5E1),
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    _getInitials(nama),
-                                    style: const TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: -2,
-                                  right: -2,
-                                  child: Container(
-                                    width: 22,
-                                    height: 22,
+                            GestureDetector(
+                              onTap: () async {
+                                final sukses = await Navigator.of(context).push<bool>(
+                                  MaterialPageRoute(builder: (_) => EditProfileScreen(user: _user ?? {})),
+                                );
+                                if (sukses == true) _muat();
+                              },
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Container(
+                                    width: 76,
+                                    height: 76,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF22C55E),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: primaryColor, width: 2),
+                                      color: const Color(0xFFCBD5E1),
+                                      borderRadius: BorderRadius.circular(20),
                                     ),
-                                    child: const Icon(
-                                      Icons.check,
-                                      color: Colors.white,
-                                      size: 13,
-                                      weight: 900,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: fotoUrl != null
+                                          ? Image.network(
+                                              fotoUrl,
+                                              width: 76,
+                                              height: 76,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => Container(
+                                                color: const Color(0xFFCBD5E1),
+                                                alignment: Alignment.center,
+                                                child: Text(
+                                                  _getInitials(nama),
+                                                  style: const TextStyle(
+                                                    fontSize: 26,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                          : Container(
+                                              color: const Color(0xFFCBD5E1),
+                                              alignment: Alignment.center,
+                                              child: Text(
+                                                _getInitials(nama),
+                                                style: const TextStyle(
+                                                  fontSize: 26,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                  Positioned(
+                                    bottom: -2,
+                                    right: -2,
+                                    child: Container(
+                                      width: 24,
+                                      height: 24,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF22C55E),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: primaryColor, width: 2),
+                                      ),
+                                      child: const Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 14,
+                                        weight: 900,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                             const SizedBox(height: 12),
 
@@ -281,6 +317,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 iconColor: const Color(0xFFD97706),
                                 title: 'Notifikasi',
                                 onTap: _dialogNotifikasi,
+                                trailing: ValueListenableBuilder<int>(
+                                  valueListenable: NotifikasiService.unreadCountNotifier,
+                                  builder: (context, unreadCount, _) {
+                                    if (unreadCount <= 0) return const SizedBox.shrink();
+                                    return Container(
+                                      margin: const EdgeInsets.only(right: 8),
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEF4444),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '$unreadCount baru',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
                               const Divider(height: 1, indent: 64, endIndent: 16, color: Color(0xFFF3F4F6)),
                               _buildMenuItem(
@@ -416,6 +474,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required Color iconColor,
     required String title,
     required VoidCallback onTap,
+    Widget? trailing,
   }) {
     return Material(
       color: Colors.transparent,
@@ -445,6 +504,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
+              if (trailing != null) trailing,
               const Icon(
                 Icons.chevron_right,
                 color: Color(0xFF9CA3AF),

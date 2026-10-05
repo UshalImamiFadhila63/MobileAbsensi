@@ -40,5 +40,24 @@ class AppConstants {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(prefKeyBaseUrl, baseUrl);
   }
+
+  static String get serverRoot {
+    if (baseUrl.endsWith('/api')) {
+      return baseUrl.substring(0, baseUrl.length - 4);
+    }
+    return baseUrl;
+  }
+
+  static String? getImageUrl(String? relativePath) {
+    if (relativePath == null || relativePath.trim().isEmpty) return null;
+    final path = relativePath.trim();
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    final root = serverRoot;
+    final fullPath = path.startsWith('/') ? path : '/$path';
+    return '$root$fullPath';
+  }
 }
+
 
