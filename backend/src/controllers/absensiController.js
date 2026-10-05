@@ -54,7 +54,7 @@ exports.absenMasuk = async (req, res) => {
   }
 };
 
-// ABSENSI PULANG: ambil foto + validasi GPS
+// ABSENSI PULANG: ambil foto + validasi GPS + validasi jam >= 17:00
 exports.absenPulang = async (req, res) => {
   try {
     const { lat, lng } = req.body;
@@ -63,6 +63,17 @@ exports.absenPulang = async (req, res) => {
     }
     if (!req.file) {
       return res.status(400).json({ message: 'Foto absen wajib diupload' });
+    }
+
+    // Validasi jam: absen pulang hanya boleh mulai pukul 17:00 WIB
+    const jam = jamSekarang(); // HH:MM:SS
+    if (jam < '17:00:00') {
+      const sisaMenit = Math.ceil(
+        (new Date(`1970-01-01T17:00:00`) - new Date(`1970-01-01T${jam}`)) / 60000
+      );
+      return res.status(400).json({
+        message: `Absen pulang hanya bisa dilakukan mulai pukul 17:00 WIB. Sisa waktu: ${sisaMenit} menit lagi.`,
+      });
     }
 
     const { valid, jarak } = isDalamRadiusKantor(parseFloat(lat), parseFloat(lng));
@@ -81,7 +92,7 @@ exports.absenPulang = async (req, res) => {
       return res.status(400).json({ message: 'Anda sudah absen pulang hari ini' });
     }
 
-    data.jam_pulang = jamSekarang();
+    data.jam_pulang = jam;
     data.foto_pulang = `/uploads/absensi/${req.file.filename}`;
     data.lat_pulang = lat;
     data.lng_pulang = lng;

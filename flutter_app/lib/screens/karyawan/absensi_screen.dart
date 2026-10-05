@@ -104,6 +104,24 @@ class _AbsensiScreenState extends State<AbsensiScreen> {
       return;
     }
 
+    // Validasi jam pulang: hanya boleh mulai pukul 17:00 WIB
+    if (!isMasuk) {
+      final sekarang = DateTime.now();
+      final bolehPulang = sekarang.hour >= 17;
+      if (!bolehPulang) {
+        final sisaJam = 16 - sekarang.hour;
+        final sisaMenit = 60 - sekarang.minute;
+        final sisaStr = sisaJam > 0
+            ? '$sisaJam jam ${sekarang.minute > 0 ? '$sisaMenit menit' : ''}'
+            : '$sisaMenit menit';
+        _tampilkanAlert(
+          'Belum Waktunya Pulang ⏰',
+          'Absen pulang baru bisa dilakukan mulai pukul 17:00 WIB.\nSisa waktu: ±$sisaStr lagi.',
+        );
+        return;
+      }
+    }
+
     final sukses = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => VerifikasiWajahScreen(isMasuk: isMasuk),

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'konfirmasi_absen_screen.dart';
 
 /// Halaman Validasi Lokasi Karyawan
@@ -40,19 +41,20 @@ class ValidasiLokasiScreen extends StatefulWidget {
 class _ValidasiLokasiScreenState extends State<ValidasiLokasiScreen> {
   Position? _currentPosition;
 
-  // Nilai default persis sesuai screenshot mockup
-  final String _defaultAlamat = 'Jl. Sudirman No. 45, Jakarta Pusat';
-  final String _defaultKoordinat = '-6.9492° S, 107.6450° E';
-  final String _defaultJarak = '45m';
-  final String _defaultRadius = '100m';
-  final String _defaultAkurasi = '±5m';
+  // Nilai default fallback jika GPS/geocoding gagal
+  static const String _defaultAlamat = 'Mendeteksi alamat...';
+  static const String _defaultKoordinat = '-';
+  static const String _defaultJarak = '-';
+  static const String _defaultRadius = '250m';
+  static const String _defaultAkurasi = '-';
 
-  String _displayAlamat = 'Jl. Sudirman No. 45, Jakarta Pusat';
-  String _displayKoordinat = '-6.9492° S, 107.6450° E';
-  String _displayJarak = '45m';
-  String _displayRadius = '100m';
-  String _displayAkurasi = '±5m';
+  String _displayAlamat = _defaultAlamat;
+  String _displayKoordinat = _defaultKoordinat;
+  String _displayJarak = _defaultJarak;
+  String _displayRadius = _defaultRadius;
+  String _displayAkurasi = _defaultAkurasi;
   bool _isLokasiValid = true;
+  bool _isLoadingAlamat = true;
 
   @override
   void initState() {
@@ -61,39 +63,75 @@ class _ValidasiLokasiScreenState extends State<ValidasiLokasiScreen> {
     _initLocationData();
   }
 
-  void _initLocationData() {
-    if (_currentPosition != null) {
-      final lat = _currentPosition!.latitude;
-      final lng = _currentPosition!.longitude;
-      final latStr = '${lat.abs().toStringAsFixed(4)}° ${lat < 0 ? 'S' : 'N'}';
-      final lngStr = '${lng.abs().toStringAsFixed(4)}° ${lng < 0 ? 'W' : 'E'}';
-      _displayKoordinat = '$latStr, $lngStr';
-
-      if (_currentPosition!.accuracy > 0) {
-        _displayAkurasi = '±${_currentPosition!.accuracy.toStringAsFixed(0)}m';
+  Future<void> _initLocationData() async {
+    if (_currentPosition == null) {
+      if (mounted) {
+        setState(() {
+          _displayAlamat = 'Lokasi tidak tersedia';
+          _displayKoordinat = _defaultKoordinat;
+          _displayJarak = _defaultJarak;
+          _displayRadius = _defaultRadius;
+          _displayAkurasi = _defaultAkurasi;
+          _isLokasiValid = true;
+          _isLoadingAlamat = false;
+        });
       }
+      return;
+    }
 
-      // Hitung jarak ke kantor: -6.949161, 107.645018
-      final dist = Geolocator.distanceBetween(
-        lat,
-        lng,
-        -6.949161,
-        107.645018,
-      );
+    final lat = _currentPosition!.latitude;
+    final lng = _currentPosition!.longitude;
 
-      if (dist <= 1000) {
-        _displayJarak = '${dist.toStringAsFixed(0)}m';
+    // Update koordinat & jarak langsung (tidak perlu async)
+    final latStr = '${lat.abs().toStringAsFixed(4)}° ${lat < 0 ? 'S' : 'N'}';
+    final lngStr = '${lng.abs().toStringAsFixed(4)}° ${lng < 0 ? 'W' : 'E'}';
+    final akurasi = _currentPosition!.accuracy > 0
+        ? '±${_currentPosition!.accuracy.toStringAsFixed(0)}m'
+        : '±-';
+
+    final dist = Geolocator.distanceBetween(lat, lng, -6.949161, 107.645018);
+    final jarakStr = '${dist.toStringAsFixed(0)}m';
+
+    if (mounted) {
+      setState(() {
+        _displayKoordinat = '$latStr, $lngStr';
+        _displayAkurasi = akurasi;
+        _displayJarak = jarakStr;
+        _isLokasiValid = true;
+      });
+    }
+
+    // Reverse geocoding: koordinat GPS → nama jalan asli
+    try {
+      final placemarks = await placemarkFromCoordinates(lat, lng);
+      if (placemarks.isNotEmpty) {
+        final p = placemarks.first;
+        // Bangun string alamat dari komponen yang tersedia
+        final parts = <String>[
+          if ((p.street ?? '').trim().isNotEmpty) p.street!.trim(),
+          if ((p.subLocality ?? '').trim().isNotEmpty) p.subLocality!.trim(),
+          if ((p.locality ?? '').trim().isNotEmpty) p.locality!.trim(),
+        ];
+        final alamat = parts.isNotEmpty
+            ? parts.join(', ')
+            : '${p.subAdministrativeArea ?? ''}, ${p.administrativeArea ?? ''}'.trim().replaceAll(RegExp(r'^,|,$'), '');
+        if (mounted) {
+          setState(() {
+            _displayAlamat = alamat.isNotEmpty ? alamat : 'Alamat tidak dikenali';
+            _isLoadingAlamat = false;
+          });
+        }
       } else {
-        _displayJarak = _defaultJarak;
+        if (mounted) setState(() { _displayAlamat = '$latStr, $lngStr'; _isLoadingAlamat = false; });
       }
-      _isLokasiValid = true;
-    } else {
-      _displayAlamat = _defaultAlamat;
-      _displayKoordinat = _defaultKoordinat;
-      _displayJarak = _defaultJarak;
-      _displayRadius = _defaultRadius;
-      _displayAkurasi = _defaultAkurasi;
-      _isLokasiValid = true;
+    } catch (_) {
+      // Jika reverse geocoding gagal (offline/timeout), tampilkan koordinat saja
+      if (mounted) {
+        setState(() {
+          _displayAlamat = '$latStr, $lngStr';
+          _isLoadingAlamat = false;
+        });
+      }
     }
   }
 
@@ -239,14 +277,36 @@ class _ValidasiLokasiScreenState extends State<ValidasiLokasiScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 5),
-                                Text(
-                                  _displayAlamat,
-                                  style: const TextStyle(
-                                    fontSize: 15.5,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF111827),
-                                  ),
-                                ),
+                                _isLoadingAlamat
+                                    ? Row(
+                                        children: [
+                                          const SizedBox(
+                                            width: 14,
+                                            height: 14,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Color(0xFF4F5BA8),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Mendeteksi alamat...',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey.shade500,
+                                              fontStyle: FontStyle.italic,
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    : Text(
+                                        _displayAlamat,
+                                        style: const TextStyle(
+                                          fontSize: 15.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF111827),
+                                        ),
+                                      ),
                                 const SizedBox(height: 4),
                                 Text(
                                   _displayKoordinat,
